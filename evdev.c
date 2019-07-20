@@ -170,7 +170,7 @@ for (i=0; i < Glob.gl_pathc; i++)
 
 */
 
-glob("/dev/event*", 0, 0, &Glob);
+glob("/dev/input/event*", 0, 0, &Glob);
 for (i=0; i < Glob.gl_pathc; i++)
 {
   Ev=(TEvDev *) calloc(1, sizeof(TEvDev));

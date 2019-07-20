@@ -13,7 +13,7 @@ void X11SendKey(Window win, unsigned int key, unsigned int mods, int state);
 int X11ProcessEvents(TInputMap *Input);
 
 int X11ReleaseKeygrabs(Window win);
-int X11AddKeyGrab(Window win, int key);
+int X11AddKeyGrab(Window win, int key, int mods);
 int X11AddButtonGrab(Window win, int btn);
 int X11Init();
 

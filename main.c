@@ -21,22 +21,23 @@ void SignalHandler(int sig)
 
 
 
-int ProcessEvent(TProfile *Profile, Window win, struct input_event *ev)
+int ProcessEvent(TProfile *Profile, Window win, TInputMap *ev)
 {
 TInputMap *IMap;
 int i, active=FALSE;
 Window target;
 
+if (! Profile) return(FALSE);
 for (i=0; i < Profile->NoOfEvents; i++)
 {
 	IMap=(TInputMap *) &Profile->Events[i];	
 	target=X11FindWin(IMap->target);
 	if (! target) target=win;
 
-	if ( (ev->type==IMap->intype) && (ev->code==IMap->input) )
+	if ( (ev->intype==IMap->intype) && (ev->input==IMap->input) && (ev->inmods==IMap->inmods) )
 	{
 		active=FALSE;
-		switch (ev->type)
+		switch (ev->intype)
 		{
 			case EV_ABS:
 				if (IMap->flags & ABS_MORE)  
@@ -86,7 +87,12 @@ TEvDev *Dev;
 TAxis *Ax=NULL;
 float perc;
 int val;
+TInputMap IMap;
 
+memset(&IMap, 0, sizeof(IMap));
+IMap.intype=ev->type;
+IMap.input=ev->code;
+IMap.value=ev->value;
 
 if (ev->type==EV_ABS)
 {
@@ -96,7 +102,7 @@ if (ev->type==EV_ABS)
 		//'HAT' axes can only range from -1 to 1
 		case ABS_HAT0X:
 		case ABS_HAT0Y:
-				ev->value=ev->value * 32767;
+				IMap.value=ev->value * 32767;
 		break;
 
 		default:
@@ -105,18 +111,17 @@ if (ev->type==EV_ABS)
 			{
 					Ax=&Dev->Axis[ev->code];
 					perc=( ((float) (ev->value - Ax->min)) / ((float) (Ax->max - Ax->min)));
-					ev->value = (perc * 32767 * 2) - 32768;
+					IMap.value = (perc * 32767 * 2) - 32768;
 			}
 		break;
 	}
 }
 
-ProcessEvent(Profile, win, ev);
-
+ProcessEvent(Profile, win, &IMap);
 }
 
 
-void ApplyProfile (Window win, TProfile *Profile)
+void SetupProfile(Window win, TProfile *Profile)
 {
 TInputMap *IMap;
 int i;
@@ -125,7 +130,7 @@ int i;
 	{
 		IMap=(TInputMap *) &Profile->Events[i];	
 
-		if (IMap->intype==EV_XKB) X11AddKeyGrab(win, IMap->input);
+		if (IMap->intype==EV_XKB) X11AddKeyGrab(win, IMap->input, IMap->inmods);
 		if (IMap->intype==EV_XBTN) X11AddButtonGrab(win, IMap->input - MOUSE_BTN_1 +1);
 	}
 }
@@ -137,14 +142,11 @@ char *Tempstr=NULL;
 TProfile *Profile;
 
 X11ReleaseKeygrabs(win);
-Profile=ProfileForApp("all");
-if (Profile) ApplyProfile(win, Profile);
-
 Tempstr=X11WindowGetCmdLine(Tempstr, win);
 
-printf("Winchange: %s\n", Tempstr);
 Profile=ProfileForApp(Tempstr);
-if (Profile) ApplyProfile(win, Profile);
+printf("Winchange: %s %d\n", Tempstr, Profile);
+if (Profile) SetupProfile(win, Profile);
 
 Destroy(Tempstr);
 
@@ -156,38 +158,9 @@ return(Profile);
 void HandleX11Keygrabs(Window win, TProfile *Profile)
 {
 TInputMap Input;
-struct input_event ev;
 
 X11ProcessEvents(&Input);
-
-switch (Input.intype)
-{
-case XKEYDOWN:
-ev.type=EV_XKB;
-ev.value=TRUE;
-ev.code=Input.input;
-break;
-
-case XKEYUP:
-ev.type=EV_XKB;
-ev.value=FALSE;
-ev.code=Input.input;
-break;
-
-case XBTNDOWN:
-ev.type=EV_XBTN;
-ev.value=TRUE;
-ev.code=MOUSE_BTN_1 + Input.input -1;
-break;
-
-case XBTNUP:
-ev.type=EV_XBTN;
-ev.value=FALSE;
-ev.code=MOUSE_BTN_1 + Input.input -1;
-break;
-}
-
-ProcessEvent(Profile, win, &ev);
+ProcessEvent(Profile, win, &Input);
 }
 
 

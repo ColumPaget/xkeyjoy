@@ -499,11 +499,15 @@ XUngrabKey(display, AnyKey, AnyModifier, win);
 }
 
 
-int X11AddKeyGrab(Window win, int key)
+int X11AddKeyGrab(Window win, int key, int mods)
 {
-int result;
+int result, modmask=None;
 
-result=XGrabKey(display, XKeysymToKeycode(display, X11TranslateKey(key)), None, RootWin, False, GrabModeAsync, GrabModeAsync);
+if (mods & KEYMOD_SHIFT) modmask |= ShiftMask;
+if (mods & KEYMOD_CTRL)  modmask |= ControlMask;
+if (mods & KEYMOD_ALT)   modmask |= Mod1Mask;
+
+result=XGrabKey(display, XKeysymToKeycode(display, X11TranslateKey(key)), mods, RootWin, False, GrabModeAsync, GrabModeAsync);
 X11SetupEvents(RootWin);
 }
 
@@ -527,26 +531,41 @@ while (XPending(display))
 {
 	XNextEvent(display, &ev);
 
+	Input->intype=0;
 	switch (ev.type)
 	{
 		case KeyPress: 
-			Input->intype=XKEYDOWN; 
+			Input->intype=EV_XKB; 
+			Input->value=TRUE; 
 			Input->input=X11TranslateKeycode(ev.xkey.keycode);
+
+			Input->inmods=0;
+			if (ev.xkey.state & ShiftMask) Input->inmods |= KEYMOD_SHIFT;
+			if (ev.xkey.state & ControlMask) Input->inmods |= KEYMOD_CTRL;
+			if (ev.xkey.state & Mod1Mask) Input->inmods |= KEYMOD_ALT;
 		break;
 
 		case KeyRelease: 
-			Input->intype=XKEYUP; 
+			Input->intype=EV_XKB; 
+			Input->value=FALSE; 
 			Input->input=X11TranslateKeycode(ev.xkey.keycode);
+
+			Input->inmods=0;
+			if (ev.xkey.state & ShiftMask) Input->inmods |= KEYMOD_SHIFT;
+			if (ev.xkey.state & ControlMask) Input->inmods |= KEYMOD_CTRL;
+			if (ev.xkey.state & Mod1Mask) Input->inmods |= KEYMOD_ALT;
 		break;
 
 		case ButtonPress:
-			Input->intype=XBTNDOWN; 
-			Input->input=ev.xbutton.button;
+			Input->intype=EV_XBTN; 
+			Input->value=TRUE; 
+			Input->input=MOUSE_BTN_1 + ev.xbutton.button -1;
 		break;
 
 		case ButtonRelease:
-			Input->intype=XBTNUP; 
-			Input->input=ev.xbutton.button;
+			Input->intype=EV_XBTN; 
+			Input->value=FALSE; 
+			Input->input=MOUSE_BTN_1 + ev.xbutton.button -1;
 		break;
 	}
 }

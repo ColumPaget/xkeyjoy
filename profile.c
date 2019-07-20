@@ -4,6 +4,7 @@
 #include <glob.h>
 
 ListNode *Profiles=NULL;
+char *AddToAllProfiles=NULL;
 
 void ProfileDestroy(void *p_Profile)
 {
@@ -171,11 +172,12 @@ if (IMap->intype==EV_KEY)
 
 static char *ProfilePreProcess(char *RetStr, const char *Config)
 {
-char *Name=NULL, *Value=NULL;
+char *Name=NULL, *Value=NULL, *Tempstr=NULL;
 const char *ptr;
 
 RetStr=CopyStr(RetStr, "");
-ptr=GetNameValuePair(Config, "\\S", "=", &Name, &Value);
+Tempstr=MCopyStr(Tempstr, Config, " ", AddToAllProfiles, NULL);
+ptr=GetNameValuePair(Tempstr, "\\S", "=", &Name, &Value);
 while (ptr)
 {
 if (strcasecmp(Name, "dpad")==0)
@@ -188,6 +190,10 @@ if (strcasecmp(Name, "dpad")==0)
 else RetStr=MCatStr(RetStr, Name, "=", Value, " ", NULL);
 ptr=GetNameValuePair(ptr, "\\S", "=", &Name, &Value);
 }
+
+Destroy(Tempstr);
+Destroy(Name);
+Destroy(Value);
 
 return(RetStr);
 }
@@ -232,28 +238,34 @@ const char *ptr;
 unsigned int in, out;
 
 if (! Profiles) Profiles=ListCreate();
-Profile=(TProfile *) calloc(1, sizeof(TProfile));
-Profile->Events=(TInputMap *) calloc(255, sizeof(TInputMap));
 
-if (Profile)
+ptr=GetToken(RawConfig, "\\S", &Value, GETTOKEN_QUOTES);
+if (strcmp(Value, "all")==0) AddToAllProfiles=CopyStr(AddToAllProfiles, ptr);
+else
 {
-	ptr=GetToken(RawConfig, "\\S", &Profile->Apps, GETTOKEN_QUOTES);
-	Config=ProfilePreProcess(Config, ptr);
-
-	ptr=GetNameValuePair(Config, "\\S", "=", &Name, &Value);
-	while (ptr)
+	Profile=(TProfile *) calloc(1, sizeof(TProfile));
+	Profile->Events=(TInputMap *) calloc(255, sizeof(TInputMap));
+	Profile->Apps=CopyStr(Profile->Apps, Value);
+	
+	if (Profile)
 	{
-		IMap=&Profile->Events[Profile->NoOfEvents];
-		if (ProfileParseInputMapping(IMap, Name, Value))
+		Config=ProfilePreProcess(Config, ptr);
+	
+		ptr=GetNameValuePair(Config, "\\S", "=", &Name, &Value);
+		while (ptr)
 		{
-		Profile->NoOfEvents++;
-		ProfileKeyAddAlternatives(Profile, IMap);
+			IMap=&Profile->Events[Profile->NoOfEvents];
+			if (ProfileParseInputMapping(IMap, Name, Value))
+			{
+			Profile->NoOfEvents++;
+			ProfileKeyAddAlternatives(Profile, IMap);
+			}
+	
+			ptr=GetNameValuePair(ptr, "\\S", "=", &Name, &Value);
 		}
-
-		ptr=GetNameValuePair(ptr, "\\S", "=", &Name, &Value);
+	
+	ListAddNamedItem(Profiles, Profile->Apps, Profile);
 	}
-
-ListAddNamedItem(Profiles, Profile->Apps, Profile);
 }
 
 Destroy(Name);
@@ -293,28 +305,6 @@ Destroy(App);
 
 return(result);
 }
-
-
-
-TProfile *ProfileForApp(const char *AppCmdLine)
-{
-TProfile *Profile=NULL, *Default=NULL;;
-ListNode *Curr;
-
-Curr=ListGetNext(Profiles);
-while (Curr)
-{
-	if (ProfileMatchesApp(Curr->Tag, AppCmdLine)) Profile=(TProfile *) Curr->Item;
-	if (strcmp(Curr->Tag, "default")==0) Default=(TProfile *) Curr->Item;
-
-	Curr=ListGetNext(Curr);
-}
-
-if (Profile) return(Profile);
-
-return(Default);
-}
-
 
 
 void ProfileLoad(const char *Path)
@@ -374,3 +364,27 @@ ptr=GetToken(ptr, ":", &Dir, 0);
 Destroy(Tempstr);
 Destroy(Dir);
 }
+
+
+TProfile *ProfileForApp(const char *AppCmdLine)
+{
+TProfile *Profile=NULL, *Default=NULL;;
+ListNode *Curr;
+
+Curr=ListGetNext(Profiles);
+while (Curr)
+{
+	if (ProfileMatchesApp(Curr->Tag, AppCmdLine)) Profile=(TProfile *) Curr->Item;
+	if (strcmp(Curr->Tag, "default")==0) Default=(TProfile *) Curr->Item;
+
+	Curr=ListGetNext(Curr);
+}
+
+if (Profile) return(Profile);
+
+return(Default);
+}
+
+
+
+
