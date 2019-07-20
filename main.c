@@ -116,21 +116,11 @@ ProcessEvent(Profile, win, ev);
 }
 
 
-TProfile *HandleWindowChange(Window win)
+void ApplyProfile (Window win, TProfile *Profile)
 {
-char *Tempstr=NULL;
-TProfile *Profile;
 TInputMap *IMap;
 int i;
 
-Tempstr=X11WindowGetCmdLine(Tempstr, win);
-
-printf("Winchange: %s\n", Tempstr);
-Profile=ProfileForApp(Tempstr);
-
-X11ReleaseKeygrabs(win);
-if (Profile)
-{
 	for (i=0; i < Profile->NoOfEvents; i++)
 	{
 		IMap=(TInputMap *) &Profile->Events[i];	
@@ -139,6 +129,22 @@ if (Profile)
 		if (IMap->intype==EV_XBTN) X11AddButtonGrab(win, IMap->input - MOUSE_BTN_1 +1);
 	}
 }
+
+
+TProfile *HandleWindowChange(Window win)
+{
+char *Tempstr=NULL;
+TProfile *Profile;
+
+X11ReleaseKeygrabs(win);
+Profile=ProfileForApp("all");
+if (Profile) ApplyProfile(win, Profile);
+
+Tempstr=X11WindowGetCmdLine(Tempstr, win);
+
+printf("Winchange: %s\n", Tempstr);
+Profile=ProfileForApp(Tempstr);
+if (Profile) ApplyProfile(win, Profile);
 
 Destroy(Tempstr);
 

@@ -512,14 +512,6 @@ case 'M':
     if (strcasecmp(str, "mute")==0) return(TKEY_MEDIA_MUTE);
 break;
 
-case 'p':
-case 'P':
-    if (strcasecmp(str, "pgup")==0) return(TKEY_PGUP);
-    if (strcasecmp(str, "pgdn")==0) return(TKEY_PGDN);
-    if (strcasecmp(str, "pause")==0) return(TKEY_PAUSE);
-    if (strcasecmp(str, "play")==0) return(TKEY_MEDIA_PAUSE);
-break;
-
 case 'l':
 case 'L':
 	if (strcasecmp(str, "LEFT")==0) return(TKEY_LEFT);
@@ -533,6 +525,16 @@ case 'o':
 case 'O':
   if (strcasecmp(str, "open")==0) return(TKEY_OPEN);
 break;
+
+case 'p':
+case 'P':
+    if (strcasecmp(str, "pgup")==0) return(TKEY_PGUP);
+    if (strcasecmp(str, "pgdn")==0) return(TKEY_PGDN);
+    if (strcasecmp(str, "pause")==0) return(TKEY_PAUSE);
+    if (strcasecmp(str, "print")==0) return(TKEY_PRINT);
+    if (strcasecmp(str, "play")==0) return(TKEY_MEDIA_PAUSE);
+break;
+
 
 case 'r':
 case 'R':
@@ -550,6 +552,8 @@ case 'S':
     if (strcasecmp(str, "standby")==0) return(TKEY_STANDBY);
     if (strcasecmp(str, "sleep")==0) return(TKEY_SLEEP);
     if (strcasecmp(str, "shop")==0) return(TKEY_SHOP);
+    if (strcasecmp(str, "scrlck")==0) return(TKEY_SCROLL_LOCK);
+    if (strcasecmp(str, "scroll-lock")==0) return(TKEY_SCROLL_LOCK);
 break;
 
 case 't':

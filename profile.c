@@ -114,15 +114,12 @@ static void ProfileParseXKBInput(TInputMap *IMap, const char *Def)
 
 	IMap->intype=EV_XKB;
 	IMap->input=ProfileParseKey(Def+4, &IMap->inmods);
-printf("XKB: %s %d\n", Def, IMap->input);
 }
 
 static void ProfileParseXButtonInput(TInputMap *IMap, const char *Def)
 {
 	IMap->intype=EV_XBTN;
 	IMap->input=ProfileParseKey(Def, NULL);
-
-printf("PB: %s %d %d\n", Def, IMap->input, MOUSE_BTN_1);
 }
 
 
@@ -214,7 +211,7 @@ const char *ptr;
 		}
 		else if (strncmp(Value, "exec:", 5)==0) 
 		{
-			IMap->target=CopyStr(IMap->target, Value);
+			IMap->target=UnQuoteStr(IMap->target, Value);
 			ptr=NULL;
 		}
 		else ptr=Value;
@@ -256,7 +253,6 @@ if (Profile)
 		ptr=GetNameValuePair(ptr, "\\S", "=", &Name, &Value);
 	}
 
-//printf("PARSE: [%s] %d\n", Profile->Apps, Profile->NoOfEvents);
 ListAddNamedItem(Profiles, Profile->Apps, Profile);
 }
 

@@ -42,6 +42,7 @@ if (! StrValid(Name)) return(NULL);
 
 if (strcmp(Name, "root")==0) return (RootWin);
 if (strcmp(Name, "rootwin")==0) return (RootWin);
+if (strncmp(Name, "0x", 2)==0) return (strtol(Name+2, NULL, 16));
 
 return(NULL);
 }
@@ -149,10 +150,6 @@ case TKEY_END:
 ks=XK_End;
 break;
 
-case TKEY_PAUSE:
-ks=XK_Pause;
-break;
-
 case TKEY_INSERT:
 ks=XK_Insert;
 break;
@@ -237,6 +234,18 @@ case TKEY_F12:
 ks=XK_F12;
 break;
 
+case TKEY_PAUSE:
+ks=XK_Pause;
+break;
+
+case TKEY_PRINT:
+ks=XK_Print;
+break;
+
+case TKEY_SCROLL_LOCK:
+ks=XK_Scroll_Lock;
+break;
+
 case TKEY_WWW:
 ks=XF86XK_WWW;
 break;
@@ -267,12 +276,10 @@ break;
 
 case TKEY_CALC:
 ks=XF86XK_Calculator;
-printf("CALC!      %d\n", ks);
 break;
 
 case TKEY_MYCOMPUTER:
 ks=XF86XK_Calculator;
-printf("MYCOMP!    %d\n", ks);
 break;
 
 case TKEY_FAVES:
@@ -291,6 +298,40 @@ case TKEY_SLEEP:
 ks=XF86XK_Sleep;
 break;
 
+case TKEY_MEDIA:
+ks=XF86XK_AudioMedia;
+break;
+
+case TKEY_MEDIA_PAUSE:
+ks=XF86XK_AudioPause;
+break;
+
+case TKEY_MEDIA_MUTE:
+ks=XF86XK_AudioMute;
+break;
+
+case TKEY_MEDIA_PREV:
+ks=XF86XK_AudioPrev;
+break;
+
+case TKEY_MEDIA_NEXT:
+ks=XF86XK_AudioNext;
+break;
+
+case TKEY_MEDIA_STOP:
+ks=XF86XK_AudioStop;
+break;
+
+case TKEY_EJECT:
+ks=XF86XK_Eject;
+break;
+
+case TKEY_VOL_UP:
+break;
+
+case TKEY_VOL_DOWN:
+break;
+
 
 default:
 if (key < 128)
@@ -302,7 +343,6 @@ if (key < 128)
 break;
 }
 
-printf("TRANS! %d %d\n", key, ks);
 return(ks);
 }
 
@@ -340,7 +380,6 @@ switch (ks)
 	case XK_Page_Down: return(TKEY_PGDN); break;
 	case XK_Home: return(TKEY_HOME); break;
 	case XK_End: return(TKEY_END); break;
-	case XK_Pause: return(TKEY_PAUSE); break;
 	case XK_Insert: return(TKEY_INSERT); break;
 	case XK_Delete: return(TKEY_DELETE); break;
 	case XK_Super_L: return(TKEY_WIN); break;
@@ -348,6 +387,9 @@ switch (ks)
 	case XK_Shift_L: return(TKEY_LSHIFT); break;
 	case XK_Shift_R: return(TKEY_RSHIFT); break;
 	case XK_Return: return(TKEY_ENTER); break;
+	case XK_Pause: return(TKEY_PAUSE); break;
+	case XK_Print: return(TKEY_PRINT); break;
+	case XK_Scroll_Lock: return(TKEY_SCROLL_LOCK); break;
 
 	case XF86XK_WWW: return(TKEY_WWW); break;
 	case XF86XK_Mail: return(TKEY_MAIL); break;
@@ -381,7 +423,7 @@ XEvent ev;
 
 if (key==0) return;
 
-printf("sendkey: %d target=%x root=%d\n", key, win, RootWin);
+printf("sendkey: %d target=%x root=%x\n", key, win, RootWin);
 
 ev.xkey.state=0;
 if (mods & KEYMOD_SHIFT) ev.xkey.state |= ShiftMask;
@@ -416,7 +458,6 @@ case MOUSE_BTN_12:
 	ev.xbutton.y_root=100;
 
 	ev.xbutton.button=key-MOUSE_BTN_1 +1;
-	printf("Button: %d\n", ev.xbutton.button);
 break;
 
 default:
@@ -462,11 +503,8 @@ int X11AddKeyGrab(Window win, int key)
 {
 int result;
 
-
 result=XGrabKey(display, XKeysymToKeycode(display, X11TranslateKey(key)), None, RootWin, False, GrabModeAsync, GrabModeAsync);
 X11SetupEvents(RootWin);
-
-printf("AddKeyGrab : %d %d\n", key, result);
 }
 
 int X11AddButtonGrab(Window win, int btn)
@@ -475,7 +513,6 @@ int result;
 
 result=XGrabButton(display, btn, None, RootWin, False, ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None);
 
-printf("AddButton: %d %d\n", btn, result);
 X11SetupEvents(win);
 }
 
@@ -486,7 +523,7 @@ int X11ProcessEvents(TInputMap *Input)
 XEvent ev;
 
 Input->intype=0;
-if (XPending(display))
+while (XPending(display))
 {
 	XNextEvent(display, &ev);
 
@@ -505,13 +542,11 @@ if (XPending(display))
 		case ButtonPress:
 			Input->intype=XBTNDOWN; 
 			Input->input=ev.xbutton.button;
-printf("BTN P: %d\n", Input->input);
 		break;
 
 		case ButtonRelease:
 			Input->intype=XBTNUP; 
 			Input->input=ev.xbutton.button;
-printf("BTN R: %d\n", Input->input);
 		break;
 	}
 }
