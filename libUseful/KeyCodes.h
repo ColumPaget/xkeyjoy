@@ -189,6 +189,7 @@
 #define TKEY_CLEAR       0x228
 #define TKEY_FOCUS_IN    0x229
 #define TKEY_FOCUS_OUT   0x22A
+#define TKEY_STOP        0x22B
 
 
 #define TKEY_SHIFT_BASE 0x1000

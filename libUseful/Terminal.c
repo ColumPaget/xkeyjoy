@@ -453,6 +453,7 @@ case 'C':
   if (strcasecmp(str, "copy")==0) return(TKEY_COPY);
   if (strcasecmp(str, "cut")==0) return(TKEY_CUT);
   if (strcasecmp(str, "clear")==0) return(TKEY_CLEAR);
+  if (strcasecmp(str, "computer")==0) return(TKEY_MYCOMPUTER);
 break;
 
 case 'd':
@@ -510,6 +511,8 @@ case 'M':
     if (strcasecmp(str, "media")==0) return(TKEY_MEDIA);
     if (strcasecmp(str, "menu")==0) return(TKEY_MENU);
     if (strcasecmp(str, "mute")==0) return(TKEY_MEDIA_MUTE);
+    if (strcasecmp(str, "mycomp")==0) return(TKEY_MYCOMPUTER);
+    if (strcasecmp(str, "mycomputer")==0) return(TKEY_MYCOMPUTER);
 break;
 
 case 'l':
@@ -552,6 +555,7 @@ case 'S':
     if (strcasecmp(str, "standby")==0) return(TKEY_STANDBY);
     if (strcasecmp(str, "sleep")==0) return(TKEY_SLEEP);
     if (strcasecmp(str, "shop")==0) return(TKEY_SHOP);
+		if (strcasecmp(str, "stop")==0) return(TKEY_STOP);
     if (strcasecmp(str, "scrlck")==0) return(TKEY_SCROLL_LOCK);
     if (strcasecmp(str, "scroll-lock")==0) return(TKEY_SCROLL_LOCK);
 break;
