@@ -3,8 +3,9 @@
 #include "proc.h"
 #include <glob.h>
 
-ListNode *Profiles=NULL;
-char *AddToAllProfiles=NULL;
+static ListNode *Profiles=NULL;
+static TProfile *Grabs=NULL;
+static char *AddToAllProfiles=NULL;
 
 void ProfileDestroy(void *p_Profile)
 {
@@ -110,17 +111,33 @@ int kv;
 }
 
 
+static void ProfileAddGrab(TInputMap *IMap)
+{
+int i;
+
+	for (i=0; i < Grabs->NoOfEvents; i++)
+	{
+		if ((Grabs->Events[i].intype==IMap->intype) && (Grabs->Events[i].input==IMap->input) ) return;
+	}
+
+	Grabs->Events=(TInputMap *) realloc(Grabs->Events, (Grabs->NoOfEvents+1) * sizeof(TInputMap));
+	Grabs->Events[Grabs->NoOfEvents].intype=IMap->intype;
+	Grabs->Events[Grabs->NoOfEvents].input=IMap->input;
+	Grabs->NoOfEvents++;
+}
+
 static void ProfileParseXKBInput(TInputMap *IMap, const char *Def)
 {
-
 	IMap->intype=EV_XKB;
 	IMap->input=ProfileParseKey(Def+4, &IMap->inmods);
+	ProfileAddGrab(IMap);
 }
 
 static void ProfileParseXButtonInput(TInputMap *IMap, const char *Def)
 {
 	IMap->intype=EV_XBTN;
 	IMap->input=ProfileParseKey(Def, NULL);
+	ProfileAddGrab(IMap);
 }
 
 
@@ -331,7 +348,7 @@ Destroy(Tempstr);
 }
 
 
-void ProfilesReload(const char *Dirs)
+TProfile *ProfilesReload(const char *Dirs)
 {
 char *Tempstr=NULL, *Dir=NULL;
 const char *ptr;
@@ -340,6 +357,8 @@ int i;
 
 if (! Profiles) Profiles=ListCreate();
 ListClear(Profiles, ProfileDestroy);
+if (! Grabs) Grabs=(TProfile *) calloc(1, sizeof(TProfile));
+else Destroy(Grabs->Events);
 
 //Dirs is a colon-separated list of directories to search in
 ptr=GetToken(Dirs, ":", &Dir, 0);
@@ -363,7 +382,10 @@ ptr=GetToken(ptr, ":", &Dir, 0);
 
 Destroy(Tempstr);
 Destroy(Dir);
+
+return(Grabs);
 }
+
 
 
 TProfile *ProfileForApp(const char *AppCmdLine)

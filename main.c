@@ -24,7 +24,7 @@ void SignalHandler(int sig)
 int ProcessEvent(TProfile *Profile, Window win, TInputMap *ev)
 {
 TInputMap *IMap;
-int i, active=FALSE;
+int i, active=FALSE, matched=FALSE;
 Window target;
 
 if (! Profile) return(FALSE);
@@ -36,6 +36,7 @@ for (i=0; i < Profile->NoOfEvents; i++)
 
 	if ( (ev->intype==IMap->intype) && (ev->input==IMap->input) && (ev->inmods==IMap->inmods) )
 	{
+		matched=TRUE;
 		active=FALSE;
 		switch (ev->intype)
 		{
@@ -77,7 +78,7 @@ for (i=0; i < Profile->NoOfEvents; i++)
 	}
 }
 
-return(active);
+return(matched);
 }
 
 
@@ -121,20 +122,6 @@ ProcessEvent(Profile, win, &IMap);
 }
 
 
-void SetupProfile(Window win, TProfile *Profile)
-{
-TInputMap *IMap;
-int i;
-
-	for (i=0; i < Profile->NoOfEvents; i++)
-	{
-		IMap=(TInputMap *) &Profile->Events[i];	
-
-		if (IMap->intype==EV_XKB) X11AddKeyGrab(win, IMap->input, IMap->inmods);
-		if (IMap->intype==EV_XBTN) X11AddButtonGrab(win, IMap->input - MOUSE_BTN_1 +1);
-	}
-}
-
 
 TProfile *HandleWindowChange(Window win)
 {
@@ -146,7 +133,6 @@ Tempstr=X11WindowGetCmdLine(Tempstr, win);
 
 Profile=ProfileForApp(Tempstr);
 printf("Winchange: %s %d\n", Tempstr, Profile);
-if (Profile) SetupProfile(win, Profile);
 
 Destroy(Tempstr);
 
@@ -154,13 +140,24 @@ return(Profile);
 }
 
 
+void ReloadProfiles(Window FocusWin)
+{
+TProfile *Grabs;
+
+	Grabs=ProfilesReload(ConfigPath);
+	ProfilesNeedReload=FALSE;
+
+	X11SetupGrabs(Grabs);
+}
+
+
 
 void HandleX11Keygrabs(Window win, TProfile *Profile)
 {
-TInputMap Input;
+TInputMap ev;
 
-X11ProcessEvents(&Input);
-ProcessEvent(Profile, win, &Input);
+X11ProcessEvents(&ev);
+if (! ProcessEvent(Profile, win, &ev)) X11SendKey(win, ev.input, ev.inmods, ev.value);
 }
 
 
@@ -203,6 +200,7 @@ p_arg=CommandLineNext(CmdLine);
 
 return(Flags);
 }
+
 
 void main(int argc, char *argv[])
 {
@@ -260,15 +258,13 @@ else
 	while (1)
 	{
 		if (ProfilesNeedReload)
-		{
-			ProfilesReload(ConfigPath);
-			ProfilesNeedReload=FALSE;
-
+		{							
 			win=X11GetFocusedWin();
-			if (win != prev_win) Profile=HandleWindowChange(win);
+			ReloadProfiles(win);
+			Profile=HandleWindowChange(win);
 			prev_win=win;
 		}
-			
+
 		S=STREAMSelect(Inputs, NULL);
 		if (S)
 		{

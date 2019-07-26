@@ -499,7 +499,7 @@ XUngrabKey(display, AnyKey, AnyModifier, win);
 }
 
 
-int X11AddKeyGrab(Window win, int key, int mods)
+int X11AddKeyGrab(int key, int mods)
 {
 int result, modmask=None;
 
@@ -511,13 +511,27 @@ result=XGrabKey(display, XKeysymToKeycode(display, X11TranslateKey(key)), mods, 
 X11SetupEvents(RootWin);
 }
 
-int X11AddButtonGrab(Window win, int btn)
+int X11AddButtonGrab(int btn)
 {
 int result;
 
 result=XGrabButton(display, btn, None, RootWin, False, ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None);
+X11SetupEvents(RootWin);
+}
 
-X11SetupEvents(win);
+
+void X11SetupGrabs(TProfile *Profile)
+{
+TInputMap *IMap;
+int i;
+
+  for (i=0; i < Profile->NoOfEvents; i++)
+  {
+    IMap=(TInputMap *) &Profile->Events[i];
+
+    if (IMap->intype==EV_XKB) X11AddKeyGrab(IMap->input, IMap->inmods);
+    if (IMap->intype==EV_XBTN) X11AddButtonGrab(IMap->input - MOUSE_BTN_1 +1);
+  }
 }
 
 

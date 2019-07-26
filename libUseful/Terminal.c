@@ -423,20 +423,26 @@ int TerminalTranslateKeyStrWithMod(const char *str, int *mod)
 {
 
 if (*mod) *mod=0;
-if (strncasecmp(str, "shift-", 6)==0)
+
+//read as many modifiers as are found, then break
+while (1)
 {
-if (mod !=NULL) *mod |= KEYMOD_SHIFT;
-str+=6;
-}
-else if (strncasecmp(str, "ctrl-", 5)==0)
-{
-if (mod !=NULL) *mod |= KEYMOD_CTRL;
-str+=5;
-}
-else if (strncasecmp(str, "alt-", 4)==0)
-{
-	if (mod !=NULL) *mod |= KEYMOD_ALT;
-	str+=4;
+	if (strncasecmp(str, "shift-", 6)==0)
+	{
+	if (mod !=NULL) *mod |= KEYMOD_SHIFT;
+	str+=6;
+	}
+	else if (strncasecmp(str, "ctrl-", 5)==0)
+	{
+	if (mod !=NULL) *mod |= KEYMOD_CTRL;
+	str+=5;
+	}
+	else if (strncasecmp(str, "alt-", 4)==0)
+	{
+		if (mod !=NULL) *mod |= KEYMOD_ALT;
+		str+=4;
+	}
+	else break;
 }
 
 switch (*str)

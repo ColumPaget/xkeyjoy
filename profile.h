@@ -18,6 +18,6 @@ TInputMap *Events;
 
 TProfile *ProfileParse(const char *Config);
 TProfile *ProfileForApp(const char *Name);
-void ProfilesReload(const char *Path);
+TProfile *ProfilesReload(const char *Path);
 
 #endif
