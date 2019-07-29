@@ -508,7 +508,6 @@ if (mods & KEYMOD_CTRL)  modmask |= ControlMask;
 if (mods & KEYMOD_ALT)   modmask |= Mod1Mask;
 
 result=XGrabKey(display, XKeysymToKeycode(display, X11TranslateKey(key)), mods, RootWin, False, GrabModeAsync, GrabModeAsync);
-X11SetupEvents(RootWin);
 }
 
 int X11AddButtonGrab(int btn)
@@ -516,7 +515,6 @@ int X11AddButtonGrab(int btn)
 int result;
 
 result=XGrabButton(display, btn, None, RootWin, False, ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None);
-X11SetupEvents(RootWin);
 }
 
 
@@ -600,7 +598,6 @@ int X11Init()
 	
 	RootWin=DefaultRootWindow(display);
   WM_PID=XInternAtom(display, "_NET_WM_PID", False);
-  //WM_NAME=XInternAtom(display, "WM_NAME", False);
 
 	return(XConnectionNumber(display));
 }

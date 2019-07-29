@@ -128,7 +128,7 @@ TProfile *HandleWindowChange(Window win)
 char *Tempstr=NULL;
 TProfile *Profile;
 
-X11ReleaseKeygrabs(win);
+//X11ReleaseKeygrabs(win);
 Tempstr=X11WindowGetCmdLine(Tempstr, win);
 
 Profile=ProfileForApp(Tempstr);
