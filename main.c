@@ -2,6 +2,7 @@
 #include "X11.h"
 #include "profile.h"
 #include "evdev.h"
+#include "wait.h"
 
 #define FLAG_LISTDEVS 1
 #define FLAG_MONITOR  2
@@ -212,7 +213,7 @@ TEvDev *Dev;
 char *Tempstr=NULL;
 TProfile *Profile=NULL;
 struct input_event ev;
-int result, Flags=0;
+int result, Flags=0, i;
 
 
 ConfigPath=CopyStr(ConfigPath, "/etc/xkeyjoy:~/.xkeyjoy");
@@ -286,6 +287,12 @@ else
 					STREAMClose(S);
 				}
 			}
+		}
+
+		//collect exited child processes
+		for (i=0; i < 100; i++) 
+		{
+			if (waitpid(-1, NULL, WNOHANG)==-1) break;
 		}
 	}
 }
