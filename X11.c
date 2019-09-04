@@ -501,13 +501,16 @@ XUngrabKey(display, AnyKey, AnyModifier, win);
 
 int X11AddKeyGrab(int key, int mods)
 {
-int result, modmask=None;
+int result, modmask=None, sym;
 
 if (mods & KEYMOD_SHIFT) modmask |= ShiftMask;
 if (mods & KEYMOD_CTRL)  modmask |= ControlMask;
 if (mods & KEYMOD_ALT)   modmask |= Mod1Mask;
 
-result=XGrabKey(display, XKeysymToKeycode(display, X11TranslateKey(key)), mods, RootWin, False, GrabModeAsync, GrabModeAsync);
+sym=XKeysymToKeycode(display, X11TranslateKey(key));
+//fprintf(stderr, "GRAB: %d %d\n", key, sym);
+
+if (sym >0) result=XGrabKey(display, sym, mods, RootWin, False, GrabModeAsync, GrabModeAsync);
 }
 
 int X11AddButtonGrab(int btn)
