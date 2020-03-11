@@ -298,6 +298,10 @@ case TKEY_SLEEP:
 ks=XF86XK_Sleep;
 break;
 
+case TKEY_STANDBY:
+ks=XF86XK_Standby;
+break;
+
 case TKEY_MEDIA:
 ks=XF86XK_AudioMedia;
 break;
@@ -327,9 +331,11 @@ ks=XF86XK_Eject;
 break;
 
 case TKEY_VOL_UP:
+ks=XF86XK_AudioRaiseVolume;
 break;
 
 case TKEY_VOL_DOWN:
+ks=XF86XK_AudioLowerVolume;
 break;
 
 
@@ -343,6 +349,7 @@ if (key < 128)
 break;
 }
 
+printf("TRANS: %d %d\n",key, ks);
 return(ks);
 }
 
@@ -405,6 +412,14 @@ switch (ks)
 
 	case XF86XK_WakeUp: return(TKEY_WAKEUP); break;
 	case XF86XK_Sleep: return(TKEY_SLEEP); break;
+	case XF86XK_Standby: return(TKEY_STANDBY); break;
+
+
+	case XF86XK_AudioMute: return(TKEY_MEDIA_MUTE); break;
+	case XF86XK_AudioNext: return(TKEY_MEDIA_NEXT); break;
+	case XF86XK_AudioPrev: return(TKEY_MEDIA_PREV); break;
+	case XF86XK_AudioLowerVolume: return(TKEY_VOL_DOWN); break;
+	case XF86XK_AudioRaiseVolume: return(TKEY_VOL_UP); break;
 
 
 	default:
@@ -508,7 +523,7 @@ if (mods & KEYMOD_CTRL)  modmask |= ControlMask;
 if (mods & KEYMOD_ALT)   modmask |= Mod1Mask;
 
 sym=XKeysymToKeycode(display, X11TranslateKey(key));
-//fprintf(stderr, "GRAB: %d %d\n", key, sym);
+fprintf(stderr, "GRAB: %d %d\n", key, sym);
 
 if (sym >0) result=XGrabKey(display, sym, mods, RootWin, False, GrabModeAsync, GrabModeAsync);
 }
