@@ -8,6 +8,27 @@
 #include "FileSystem.h"
 #include <sys/ioctl.h>
 
+#define SPAWN_COMBINE_STDERR 1
+
+int SpawnParseConfig(const char *Config)
+{
+    const char *ptr;
+    char *Token=NULL;
+    int Flags=0;
+
+    ptr=GetToken(Config," |,",&Token,GETTOKEN_MULTI_SEP);
+    while (ptr)
+    {
+        if (strcasecmp(Token,"+stderr")==0) Flags |= SPAWN_COMBINE_STDERR;
+
+        ptr=GetToken(ptr," |,",&Token,GETTOKEN_MULTI_SEP);
+    }
+
+    DestroyString(Token);
+
+    return(Flags);
+}
+
 
 
 
@@ -153,24 +174,30 @@ pid_t PipeSpawnFunction(int *infd, int *outfd, int *errfd, BASIC_FUNC Func, void
     int channel1[2], channel2[2], channel3[2], DevNull=-1;
     int Flags;
 
+		
+		Flags=SpawnParseConfig(Config);
     if (infd) 
 		{
 			pipe(channel1);
 			//this is a read channel, so pipe[0]
 			c1=channel1[0];
 		}
+
     if (outfd) 
 		{
 			pipe(channel2);
 			//this is a write channel, so pipe[1]
 			c2=channel2[1];
 		}
+
     if (errfd) 
 		{
 			pipe(channel3);
 			//this is a write channel, so pipe[1]
 			c3=channel3[1];
 		}
+		else if (Flags & SPAWN_COMBINE_STDERR) c3=c2;
+
 
     pid=xforkio(c1, c2, c3);
     if (pid==0)
@@ -178,14 +205,21 @@ pid_t PipeSpawnFunction(int *infd, int *outfd, int *errfd, BASIC_FUNC Func, void
         /* we are the child */
         if (infd) close(channel1[1]);
         else if (DevNull==-1) DevNull=open("/dev/null",O_RDWR);
+
         if (outfd) close(channel2[0]);
         else if (DevNull==-1) DevNull=open("/dev/null",O_RDWR);
+
         if (errfd) close(channel3[0]);
         else if (DevNull==-1) DevNull=open("/dev/null",O_RDWR);
 
+				//if Func is NULL we effectively do a fork, rather than calling a function we just
+        //continue exectution from where we were
         Flags=ProcessApplyConfig(Config);
+				if (Func)
+				{
 				if (! (Flags & PROC_SETUP_FAIL)) Func(Data, Flags);
         exit(0);
+				}
     }
     else // This is the parent process, not the spawned child
     {
@@ -205,7 +239,7 @@ pid_t PipeSpawnFunction(int *infd, int *outfd, int *errfd, BASIC_FUNC Func, void
             close(channel3[1]);
             //Yes, we can pass an integer value as errfd, even though errfd is an int *.
             //This is probably a bad idea, and will likely be changed in future releases
-            if ((int) errfd != COMMS_COMBINE_STDERR) *errfd=channel3[0];
+            *errfd=channel3[0];
         }
     }
 
@@ -245,8 +279,14 @@ pid_t PseudoTTYSpawnFunction(int *ret_pty, BASIC_FUNC Func, void *Data, int Flag
             close(tty);
 
             ConfigFlags=ProcessApplyConfig(Config);
+
+						//if Func is NULL we effectively do a fork, rather than calling a function we just
+						//continue exectution from where we were
+						if (Func)
+						{
 						if (! (ConfigFlags & PROC_SETUP_FAIL)) Func((char *) Data, ConfigFlags);
             _exit(0);
+						}
         }
 
         close(tty);
@@ -283,7 +323,6 @@ STREAM *STREAMSpawnFunction(BASIC_FUNC Func, void *Data, const char *Config)
     else
     {
         iptr=NULL;
-        //if (Flags & COMMS_COMBINE_STDERR) iptr=(int *) COMMS_COMBINE_STDERR;
         pid=PipeSpawnFunction(&to_fd, &from_fd, iptr, Func, Data, Config);
     }
 

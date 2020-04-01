@@ -349,7 +349,6 @@ if (key < 128)
 break;
 }
 
-printf("TRANS: %d %d\n",key, ks);
 return(ks);
 }
 
@@ -432,18 +431,40 @@ return(0);
 }
 
 
-void X11SendKey(Window win, unsigned int key, unsigned int mods, int state)
+void X11SendKey(Window win, int key, int mods, int state)
+{
+XEvent ev;
+ev.xkey.state=0;
+
+	if (state) ev.type=KeyPress;
+	else ev.type=KeyRelease;
+	ev.xkey.display=display;
+	ev.xkey.window=win;
+	ev.xkey.subwindow=win;
+	ev.xkey.root=RootWin;
+
+	if (mods & KEYMOD_SHIFT) ev.xkey.state |= ShiftMask;
+	if (mods & KEYMOD_CTRL) ev.xkey.state |= ControlMask;
+	if (mods & KEYMOD_ALT) ev.xkey.state |= Mod1Mask;
+
+	ev.xkey.keycode=XKeysymToKeycode(display, key);
+	XSendEvent(display, win, False, KeyPressMask | KeyReleaseMask, &ev);
+}
+
+
+
+void X11SendEvent(Window win, unsigned int key, unsigned int mods, int state)
 {
 XEvent ev;
 
 if (key==0) return;
 
-printf("sendkey: %d target=%x root=%x\n", key, win, RootWin);
+if (Flags & FLAG_DEBUG) printf("sendkey: %d target=%x root=%x\n", key, win, RootWin);
 
 ev.xkey.state=0;
-if (mods & KEYMOD_SHIFT) ev.xkey.state |= ShiftMask;
-if (mods & KEYMOD_CTRL)  ev.xkey.state |= ControlMask;
-if (mods & KEYMOD_ALT)   ev.xkey.state |= Mod1Mask;
+if (mods & KEYMOD_SHIFT) X11SendKey(win, XK_Shift_L, 0, state);
+if (mods & KEYMOD_CTRL) X11SendKey(win, XK_Control_L, 0, state);
+if (mods & KEYMOD_ALT) X11SendKey(win, XK_Meta_L, 0, state);
 
 switch (key)
 {
@@ -473,22 +494,16 @@ case MOUSE_BTN_12:
 	ev.xbutton.y_root=100;
 
 	ev.xbutton.button=key-MOUSE_BTN_1 +1;
+	XSendEvent(display, win, False, ButtonPressMask | ButtonReleaseMask, &ev);
 break;
 
 default:
-	if (state) ev.type=KeyPress;
-	else ev.type=KeyRelease;
-
-	ev.xkey.display=display;
-	ev.xkey.window=win;
-	ev.xkey.subwindow=win;
-	ev.xkey.root=RootWin;
-
-	ev.xkey.keycode=XKeysymToKeycode(display, X11TranslateKey(key));
+	X11SendKey(win, X11TranslateKey(key), mods, state);
 break;
 }
 
-XSendEvent(display, win, False, ButtonPressMask | ButtonReleaseMask | KeyPressMask | KeyReleaseMask, &ev);
+
+
 XSync(display, True);
 }
 
@@ -523,7 +538,6 @@ if (mods & KEYMOD_CTRL)  modmask |= ControlMask;
 if (mods & KEYMOD_ALT)   modmask |= Mod1Mask;
 
 sym=XKeysymToKeycode(display, X11TranslateKey(key));
-fprintf(stderr, "GRAB: %d %d\n", key, sym);
 
 if (sym >0) result=XGrabKey(display, sym, mods, RootWin, False, GrabModeAsync, GrabModeAsync);
 }

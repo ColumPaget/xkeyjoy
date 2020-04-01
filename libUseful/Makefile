@@ -1,11 +1,11 @@
 CC = gcc
-VERSION = 4.6
+VERSION = 4.25
 CFLAGS = -g -O2 
 LDFLAGS=
 LIBS = -lc -lc -lc -lc -lc -lc -lc -lc 
 FLAGS=$(LDFLAGS) $(CPPFLAGS) $(CFLAGS) -fPIC -DPACKAGE_NAME=\"\" -DPACKAGE_TARNAME=\"\" -DPACKAGE_VERSION=\"\" -DPACKAGE_STRING=\"\" -DPACKAGE_BUGREPORT=\"\" -DPACKAGE_URL=\"\" -DSTDC_HEADERS=1 -D_FILE_OFFSET_BITS=64 -DHAVE_LIBC=1 -DHAVE_PTSNAME_R=1 -DHAVE_LIBC=1 -DHAVE_CLEARENV=1 -DHAVE_LIBC=1 -DHAVE_SETRESUID=1 -DHAVE_LIBC=1 -DHAVE_GET_CURR_DIR=1 -DHAVE_LIBC=1 -DHAVE_UMOUNT2=1 -DHAVE_LIBC=1 -DHAVE_UMOUNT=1 -DHAVE_LIBC=1 -DHAVE_MKOSTEMP=1 -DHAVE_LIBC=1 -DHAVE_POLL=1 -DHAVE_MADVISE -DHAVE_MADVISE_NOFORK -DHAVE_MADVISE_DONTDUMP -DHAVE_MLOCK -DVERSION=\"$(VERSION)\"
 prefix=/usr/local
-OBJ=String.o List.o Socket.o UnixSocket.o Stream.o Errors.o Unicode.o Terminal.o FileSystem.o GeneralFunctions.o DataProcessing.o Pty.o Log.o Http.o Smtp.o inet.o Expect.o base64.o  crc32.o md5c.o sha1.o sha2.o whirlpool.o jh_ref.o Hash.o Ssh.o Compression.o OAuth.o LibSettings.o Vars.o Time.o Markup.o SpawnPrograms.o Tokenizer.o PatternMatch.o URL.o DataParser.o ConnectionChain.o OpenSSL.o Process.o Encodings.o RawData.o SecureMem.o CommandLineParser.o SysInfo.o
+OBJ=String.o Array.o List.o Socket.o UnixSocket.o Stream.o Errors.o Unicode.o Terminal.o FileSystem.o GeneralFunctions.o DataProcessing.o Pty.o Log.o Http.o Smtp.o inet.o Expect.o base64.o  crc32.o md5c.o sha1.o sha2.o whirlpool.o jh_ref.o Hash.o Ssh.o Compression.o OAuth.o LibSettings.o Vars.o Time.o Markup.o SpawnPrograms.o Tokenizer.o PatternMatch.o URL.o DataParser.o ConnectionChain.o OpenSSL.o Process.o Encodings.o RawData.o SecureMem.o CommandLineParser.o SysInfo.o
 
 
 all: $(OBJ)
@@ -19,6 +19,9 @@ all: $(OBJ)
 
 String.o: String.h String.c
 	$(CC) $(FLAGS) -c String.c
+
+Array.o: Array.h Array.c
+	$(CC) $(FLAGS) -c Array.c
 
 List.o: List.h List.c
 	$(CC) $(FLAGS) -c List.c
@@ -161,11 +164,12 @@ clean:
 	-rm -r autom4te.cache config.cache
 
 install: libUseful.so
-	-mkdir -p $(prefix)/lib; cp *.so *.a $(prefix)/lib  
-	-mkdir -p $(prefix)/include/libUseful-$(VERSION)
-	cp *.h $(prefix)/include/libUseful-$(VERSION)
-	-mkdir -p $(prefix)/include/libUseful-4
-	cp *.h $(prefix)/include/libUseful-4
+	-mkdir -p $(DESTDIR)$(prefix)/lib 
+	cp -P *.so *.a $(DESTDIR)$(prefix)/lib  
+	-mkdir -p $(DESTDIR)$(prefix)/include/libUseful-$(VERSION)
+	cp *.h $(DESTDIR)$(prefix)/include/libUseful-$(VERSION)
+	-mkdir -p $(DESTDIR)$(prefix)/include/libUseful-4
+	cp *.h $(DESTDIR)$(prefix)/include/libUseful-4
 
 test: libUseful.so
 	-echo "No tests written yet"

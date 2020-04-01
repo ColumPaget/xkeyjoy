@@ -22,6 +22,6 @@ STREAM *S;
 
 void EvdevListDevices(ListNode *Devices);
 void EvdevMonitorDevice(ListNode *Devices, const char *Name);
-ListNode *EvdevLoadDevices();
+int EvdevLoadDevices(ListNode *Devices);
 
 #endif

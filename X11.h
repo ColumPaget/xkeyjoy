@@ -9,7 +9,7 @@ Window X11GetFocusedWin();
 Window X11FindWin(const char *Name);
 char *X11WindowGetCmdLine(char *RetStr, Window win);
 
-void X11SendKey(Window win, unsigned int key, unsigned int mods, int state);
+void X11SendEvent(Window win, unsigned int key, unsigned int mods, int state);
 int X11ProcessEvents(TInputMap *Input);
 
 int X11Init();

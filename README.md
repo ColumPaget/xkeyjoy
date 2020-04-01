@@ -4,7 +4,8 @@ SUMMARY
 xkeyjoy is a daemon process that maps input from gamepads via evdev or from mice and keyboards via X11. These inputs can be used to launch programs or be mapped to keypresses to control running programs. xkeyjoy can detect which window has current focus, hopefully can figure out which application is running, and can use a unique configuration for that application. Currently there is no GUI, all configuration is done via config files.
 
 For xkeyjoy to detect which application has the current focus that application must either expose it's process id, or its commandline as X11 properties. xkeyjoy first looks for the `_NET_WM_PID` property that contains the process id, and if it gets that it looks the process up in /proc to obtain its full command-line. If the application doesn't expose the `_NEW_WM_PID` property, then xkeyjoy checks for the `XA_WM_COMMAND` property that should contain the applications full command-line. If that's missing, then xkeyjoy falls back to the `XA_WM_NAME` property, from which it can at least obtain the program's name. It will then try to match the program's command-line, or name if that's all it's got, against configuration profiles to select the right one.
-nf
+
+
 DISCLAIMER
 ==========
 
@@ -18,6 +19,13 @@ xkeyjoy <options>
 
 *  -d           don't daemonize (don't fork into background)
 *  -c <path>    path to a config file, or a directory containing config files
+*  -v           output program version
+*  -version     output program version
+*  --version    output program version
+*  -?           output program help
+*  -h           output program help
+*  -help        output program help
+*  --help       output program help
 
 Normally you'll just run ./xkeyjoy to fork it into the background. By default xkeyjoy looks for config files in the '/etc/xkeyjoy' and '~/.xkeyjoy' directories.
 
@@ -25,7 +33,7 @@ Normally you'll just run ./xkeyjoy to fork it into the background. By default xk
 CONFIG FILES
 ============
 
-By default config files live in the '/etc/xkeyjoy' for system-wide config files, or the '~/.xkeyjoy' directory. xkeyjoy will try to load any files in these directories as config files, building it's config from the result of merging all of them. Config files can have any name. A default config file is shipped with the source under the name 'profiles.conf'.
+By default config files live in the '/etc/xkeyjoy' directory for system-wide config files, or the '~/.xkeyjoy' directory. xkeyjoy will try to load any files in these directories as config files, building its config from the result of merging all of them. Config files can have any name. A default config file is shipped with the source under the name 'profiles.conf'.
 
 Each line in a config file is a config for one application, and has the form:
 
@@ -43,6 +51,7 @@ A 'map type' describes an event that xkeyjoy will respond to. These can be:
 
 ```
 btn:<name>       a gamepad (or other device) button reported through evdev.
+sw:<name>        a switch (lid-switch etc) reported through evdev.
 abs<num>         a joystick axis reported through evdev.
 xbtn:<name>      a button event reported through X11 (these will normally be mouse buttons)
 xkb:<name>       a keyboard event reported through X11
@@ -50,8 +59,11 @@ xkb:<name>       a keyboard event reported through X11
 
 A 'map action' is an action carried out in response to an event. These can be:
 
+```
 <keyname>          a keypress
 exec:<progname>    a program to launch
+```
+
 
 For example:
 
@@ -112,6 +124,41 @@ This uses axis '0' (abs0) and axis '3' (abs3) to trigger the left and right arro
 
 
 
+
+INPUTS
+======
+
+Inputs recognized by xkeyjoy are:
+
+```
+Gamepad Buttons: btn:A, btn:B, btn:C, btn:X, btn:Y, btn:Z, btn:select, btn:start, btn:ltrig, btn:rtrig
+Gamepad DPad:    btn:up, btn:down, btn:left, btn:right
+Gamepad Sticks:  abs0, abs1, abs2, abs3
+Switches:        sw:lid, sw:rfkill, sw:dock, sw:tablet
+X11 keypresses:  xkb:<keyname>
+```
+
+Gamepad sticks are configured differently than other input types. Firstly they are divided into axes, so abs0 and abs1 will usually be the x and y axis of the first stick, and abs2 and abs3 will be the x and y axes of the second stick. These axes are multi-valued inputs depending on how far they've been moved, so to map these to a keyboard input we have to specify a maximum or minimum value that will trigger the keysend. This is written like:
+
+```
+abs0<-4000=left abs0>4000=right
+```
+
+Xkeyboard events can be specified using the syntax `xkb:<keyname>`, e.g. `xkb:home`, `xkb:pause`, `xkb:F1`. It's normally most useful to map these to 'exec' actions.  
+
+There are only a few switch events, only two of which are very useful: the lid switch `sw:lid` and the rfkill switch `sw:rfkill`. 
+
+You can map the lid switch activating to screen lock with:
+
+```
+	sw:lid=xautolock\ -locknow
+```
+
+The other switches are 'inserted into dock' `sw:dock`, 'tablet mode' `sw:tablet`, 'headphones inserted' `sw:headphone` `sw:phone`, 'microphone inserted `sw:microphone` `sw:mic`, 'line-out inserted' `sw:lineout`, 'lin-in inserted' `sw:linein`.
+
+All switches have an 'off' version, written like `sw:lid-off` or `sw:microphone-off` which triggers on the release/deactivate event rather than the activated event for the switch.
+
+
 EXEC ACTION
 ===========
 
@@ -120,6 +167,8 @@ the `exec:` action launches the specified command-line.  To launch command-lines
 ```
 	xkb:search=exec:firefox\ www.google.com xkb:shop=exec:firefox\ www.ebay.com
 ```
+
+
 
 KEYNAMES
 ========
@@ -137,3 +186,7 @@ Media keys: play, mute, volup, voldown
 'esc' is the standard escape key, 'win' is the windows key, 'volup' and 'voldown' are the increase and decrease volume keys on media keyboards. 'play' is the 'play or pause' key on media keyboards. 'scrlck' is the scroll-lock key, 'print' is the print-screen key and 'pause' is the pause/break key.
 
 
+SUPPORTED GAMEPADS
+==================
+
+So far PS4, Logitech and 8bitdo gamepads have been seen to work with xkeyjoy. Some other gamepads do not send the appropriate keycodes, and so do not work at current.

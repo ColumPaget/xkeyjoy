@@ -9,14 +9,15 @@ AC_PROG_INSTALL
 AC_HEADER_STDC 
 AC_SYS_LARGEFILE
 
-STATIC_LIBS="libUseful/libUseful.a"
-AC_CONFIG_SUBDIRS([libUseful])
-
 AC_CHECK_FILE([/usr/X11/include/X11/X.h], [X11ROOT="/usr/X11"],
               AC_CHECK_FILE([/usr/X11R7/include/X11/X.h], [X11ROOT="/usr/X11R7"],
               AC_CHECK_FILE([/usr/X11R6/include/X11/X.h], [X11ROOT="/usr/X11R6"])
               )
               )
+
+AC_CHECK_HEADER([linux/input.h],
+								CFLAGS="$CFLAGS -DHAVE_LINUX_INPUT_H"
+								)
 
 if test "X11ROOT" != ""
 then
@@ -38,6 +39,25 @@ AC_DEFINE([HAVE_X11])
 else
 echo "ERROR: cannot find libX11"
 exit
+fi
+
+AC_ARG_WITH(system-libuseful, [  --with-system-libuseful       use systemwide libUseful.so rather than bundled version], cf_with_libuseful=$withval )
+
+if test "$cf_with_libuseful" != "no" -a "$cf_with_libuseful" != ""
+then
+AC_CHECK_LIB([Useful],[OpenSSLVerifyCallback],
+  [AC_CHECK_LIB([ssl],[SSL_new],,,[-lcrypto -lz])]
+  [AC_CHECK_LIB([crypto],[ERR_load_CRYPTO_strings],,,[-lz])]
+  [AC_CHECK_LIB([z],[inflate])]
+  ,,[-lssl -lcrypto -lz])
+AC_CHECK_LIB(Useful,GetToken)
+
+LUSEFUL="system"
+else
+LUSEFUL="bundled"
+LIBUSEFUL="libUseful/libUseful.a"
+AC_SUBST(LIBUSEFUL)
+AC_CONFIG_SUBDIRS([libUseful])
 fi
 
 

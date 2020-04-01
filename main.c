@@ -4,10 +4,6 @@
 #include "evdev.h"
 #include "wait.h"
 
-#define FLAG_LISTDEVS 1
-#define FLAG_MONITOR  2
-#define FLAG_NODEMON  4
-
 char *ConfigPath=NULL;
 
 //starts off as true, gets set false after reload, can be
@@ -20,6 +16,22 @@ void SignalHandler(int sig)
 }
 
 
+int IfEventTrigger(TInputMap *ev, TInputMap *IMap)
+{
+switch (ev->intype)
+{
+	case EV_SW: 
+		if (ev->value==IMap->value) return(TRUE);
+	break;
+
+	default:
+		//for buttons trigger on button release
+		if (ev->value==0) return(TRUE);
+	break;
+}
+
+return(FALSE);
+}
 
 
 int ProcessEvent(TProfile *Profile, Window win, TInputMap *ev)
@@ -56,24 +68,31 @@ for (i=0; i < Profile->NoOfEvents; i++)
 				
 				if (active) 
 				{
-					X11SendKey(target, IMap->output, IMap->outmods, TRUE);
+					X11SendEvent(target, IMap->output, IMap->outmods, TRUE);
 					IMap->flags |= FLAG_ACTIVE;
 				}
 				else if (IMap->flags & FLAG_ACTIVE) 
 				{
-					X11SendKey(target, IMap->output, IMap->outmods, FALSE);
+					X11SendEvent(target, IMap->output, IMap->outmods, FALSE);
 					IMap->flags &= ~FLAG_ACTIVE;
 				}
 
 			break;
 
+
+			case EV_SW:
 			case EV_XKB:
+				//fall through
+				
 			default:
 					if (IMap->output==0)
 					{
-						if ( (ev->value == 0) && (strncmp(IMap->target, "exec:", 5)==0) ) Spawn(IMap->target +5, "");
+						if (IfEventTrigger(ev, IMap))
+						{
+							if (strncmp(IMap->target, "exec:", 5)==0) Spawn(IMap->target +5, "");
+						}
 					}
-					else X11SendKey(target, IMap->output, IMap->outmods, ev->value);
+					else X11SendEvent(target, IMap->output, IMap->outmods, ev->value);
 			break;
 		}
 	}
@@ -81,6 +100,8 @@ for (i=0; i < Profile->NoOfEvents; i++)
 
 return(matched);
 }
+
+
 
 
 int ProcessDevice(STREAM *S, Window win, struct input_event *ev, TProfile *Profile)
@@ -96,6 +117,7 @@ IMap.intype=ev->type;
 IMap.input=ev->code;
 IMap.value=ev->value;
 
+//if the event is of type EV_ABS it means it's a joystick or other type of multi-value axis
 if (ev->type==EV_ABS)
 {
 	switch (ev->code)
@@ -133,7 +155,7 @@ TProfile *Profile;
 Tempstr=X11WindowGetCmdLine(Tempstr, win);
 
 Profile=ProfileForApp(Tempstr);
-printf("Winchange: %s %d\n", Tempstr, Profile);
+if (Flags & FLAG_DEBUG) printf("Winchange: %s %x\n", Tempstr, win);
 
 Destroy(Tempstr);
 
@@ -158,7 +180,7 @@ void HandleX11Keygrabs(Window win, TProfile *Profile)
 TInputMap ev;
 
 X11ProcessEvents(&ev);
-if (! ProcessEvent(Profile, win, &ev)) X11SendKey(win, ev.input, ev.inmods, ev.value);
+if (! ProcessEvent(Profile, win, &ev)) X11SendEvent(win, ev.input, ev.inmods, ev.value);
 }
 
 
@@ -194,12 +216,70 @@ if (p_arg)
 while (p_arg)
 {
 if (strcmp(p_arg, "-d")==0) Flags |= FLAG_NODEMON;
-if (strcmp(p_arg, "-c")==0) ConfigPath=CopyStr(ConfigPath, CommandLineNext(CmdLine));
+else if (strcmp(p_arg, "-v")==0) Flags |= FLAG_VERSION;
+else if (strcmp(p_arg, "-version")==0) Flags |= FLAG_VERSION;
+else if (strcmp(p_arg, "--version")==0) Flags |= FLAG_VERSION;
+else if (strcmp(p_arg, "-h")==0) Flags |= FLAG_HELP;
+else if (strcmp(p_arg, "-?")==0) Flags |= FLAG_HELP;
+else if (strcmp(p_arg, "-help")==0) Flags |= FLAG_HELP;
+else if (strcmp(p_arg, "--help")==0) Flags |= FLAG_HELP;
+else if (strcmp(p_arg, "-c")==0) ConfigPath=CopyStr(ConfigPath, CommandLineNext(CmdLine));
 p_arg=CommandLineNext(CmdLine);
 
 }
 
 return(Flags);
+}
+
+
+void DisplayHelp()
+{
+printf("Usage:\n");
+printf("   xkeyjoy [options]\n");
+printf("   xkeyjoy list\n");
+printf("   xkeyjoy mon <device name>\n");
+printf("\n");
+printf("'xkeyjoy' without a modifer (list, mon) will run in daemon mode and process any devices that either have switch, or axis inputs (lid switch, rfkill, gamepads, joysticks etc).\n");
+printf("xkeyjoy list' lists input devices that xkeyjoy can currently receive events from.\n");
+printf("'xkeyjoy mon' can be used to monitor events coming from a specific device. e.g. 'xkeyjoy mon event1'\n");
+printf("\nOptions for daemon mode are:\n");
+printf("-d          don't background/daemonize\n");
+printf("-c <path>   path to config file or directory containing config files\n");
+printf("-v          output version info\n");
+printf("-version    output version info\n");
+printf("--version   output version info\n");
+printf("-h          this help\n");
+printf("-?          this help\n");
+printf("-help       this help\n");
+printf("--help      this help\n");
+}
+
+
+
+void ActivateInputs(ListNode *Inputs, ListNode *Devices, STREAM *X11Input)
+{
+ListNode *Curr;
+TEvDev *Dev;
+
+	ListClear(Inputs, NULL);
+	ListAddItem(Inputs, X11Input);
+
+	Curr=ListGetNext(Devices);
+	while (Curr)
+	{
+		Dev=(TEvDev *) Curr->Item;
+		if (Dev->S != NULL) 
+		{
+			if (
+					BitIsSet(& (Dev->caps), EV_ABS) || 
+					BitIsSet(& (Dev->caps), EV_SW)
+				 ) 
+			{
+				ListAddItem(Inputs, Dev->S);
+			}
+		}
+		Curr=ListGetNext(Curr);
+	}
 }
 
 
@@ -209,21 +289,24 @@ ListNode *Devices, *Curr;
 ListNode *Inputs;
 Window win, prev_win=None;
 STREAM *S, *X11Input;
-TEvDev *Dev;
 char *Tempstr=NULL;
 TProfile *Profile=NULL;
 struct input_event ev;
-int result, Flags=0, i;
+int result, i;
+struct timeval tv;
 
-
+Devices=ListCreate();
 ConfigPath=CopyStr(ConfigPath, "/etc/xkeyjoy:~/.xkeyjoy");
 signal(SIGHUP, SignalHandler);
 
 Flags=ParseCommandLine(argc, argv);
+if ( (Flags & FLAG_NODEMON) && (isatty(1)) ) Flags |= FLAG_DEBUG;
 
-Devices=EvdevLoadDevices();
+EvdevLoadDevices(Devices);
 
-if (Flags & FLAG_LISTDEVS) EvdevListDevices(Devices);
+if (Flags & FLAG_HELP) DisplayHelp();
+else if (Flags & FLAG_VERSION) printf("version: %s\n", VERSION);
+else if (Flags & FLAG_LISTDEVS) EvdevListDevices(Devices);
 else if (Flags & FLAG_MONITOR) EvdevMonitorDevice(Devices, argv[2]);
 else
 {
@@ -236,23 +319,7 @@ else
 	}
 
 	X11Input=STREAMFromFD(result);
-	ListAddItem(Inputs, X11Input);
-
-	Curr=ListGetNext(Devices);
-	while (Curr)
-	{
-		Dev=(TEvDev *) Curr->Item;
-		if (Dev->S != NULL) 
-		{
-			if (
-					BitIsSet(& (Dev->caps), EV_ABS)
-				 ) 
-			{
-				ListAddItem(Inputs, Dev->S);
-			}
-		}
-		Curr=ListGetNext(Curr);
-	}
+	ActivateInputs(Inputs, Devices, X11Input);
 
 	if (! (Flags & FLAG_NODEMON)) demonize();
 
@@ -266,7 +333,9 @@ else
 			prev_win=win;
 		}
 
-		S=STREAMSelect(Inputs, NULL);
+		tv.tv_sec=3;
+		tv.tv_usec=0;
+		S=STREAMSelect(Inputs, &tv);
 		if (S)
 		{
 				win=X11GetFocusedWin();
@@ -283,6 +352,7 @@ else
 				}
 				else if (result < 1)
 				{
+					if (Flags & FLAG_DEBUG) printf("REMOVE %s\n", S->Path);
 					ListDeleteItem(Inputs, S);
 					STREAMClose(S);
 				}
@@ -294,6 +364,8 @@ else
 		{
 			if (waitpid(-1, NULL, WNOHANG)==-1) break;
 		}
+
+		if (EvdevLoadDevices(Devices)) ActivateInputs(Inputs, Devices, X11Input);
 	}
 }
 

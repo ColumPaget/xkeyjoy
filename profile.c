@@ -2,6 +2,7 @@
 #include "profile.h"
 #include "proc.h"
 #include <glob.h>
+#include <fnmatch.h>
 
 static ListNode *Profiles=NULL;
 static TProfile *Grabs=NULL;
@@ -44,6 +45,119 @@ static void ProfileParseButtonInput(TInputMap *IMap, const char *Name)
 	if (strcasecmp(Name, "btn:right")==0) IMap->input=BTN_DPAD_RIGHT;
 
 	IMap->value=1;
+}
+
+
+static void ProfileParseSwitchInput(TInputMap *IMap, const char *Name)
+{
+	IMap->intype=EV_SW;
+
+	if (strcasecmp(Name, "sw:lid")==0) 
+	{
+		IMap->input=SW_LID;
+		IMap->value=1;
+	}
+	if (strcasecmp(Name, "sw:rfkill")==0) 
+	{
+		IMap->input=SW_RFKILL_ALL;
+		IMap->value=1;
+	}
+	if (strcasecmp(Name, "sw:dock")==0) 
+	{
+		IMap->input=SW_DOCK;
+		IMap->value=1;
+	}
+	if (strcasecmp(Name, "sw:tablet")==0) 
+	{
+		IMap->input=SW_TABLET_MODE;
+		IMap->value=1;
+	}
+	if (strcasecmp(Name, "sw:headphone")==0) 
+	{
+		IMap->input=SW_HEADPHONE_INSERT;
+		IMap->value=1;
+	}
+	if (strcasecmp(Name, "sw:phones")==0) 
+	{
+		IMap->input=SW_HEADPHONE_INSERT;
+		IMap->value=1;
+	}
+	if (strcasecmp(Name, "sw:mic")==0) 
+	{
+		IMap->input=SW_MICROPHONE_INSERT;
+		IMap->value=1;
+	}
+	if (strcasecmp(Name, "sw:microphone")==0) 
+	{
+		IMap->input=SW_MICROPHONE_INSERT;
+		IMap->value=1;
+	}
+	if (strcasecmp(Name, "sw:lineout")==0) 
+	{
+		IMap->input=SW_LINEOUT_INSERT;
+		IMap->value=1;
+	}
+	if (strcasecmp(Name, "sw:linein")==0) 
+	{
+		IMap->input=SW_LINEIN_INSERT;
+		IMap->value=1;
+	}
+
+
+	if (strcasecmp(Name, "sw:lid-off")==0) 
+	{
+		IMap->input=SW_LID;
+		IMap->value=0;
+	}
+	if (strcasecmp(Name, "sw:rfkill-off")==0) 
+	{
+		IMap->input=SW_RFKILL_ALL;
+		IMap->value=0;
+	}
+	if (strcasecmp(Name, "sw:dock-off")==0) 
+	{
+		IMap->input=SW_DOCK;
+		IMap->value=0;
+	}
+	if (strcasecmp(Name, "sw:tablet-off")==0) 
+	{
+		IMap->input=SW_TABLET_MODE;
+		IMap->value=0;
+	}
+	if (strcasecmp(Name, "sw:headphone-off")==0) 
+	{
+		IMap->input=SW_HEADPHONE_INSERT;
+		IMap->value=0;
+	}
+	if (strcasecmp(Name, "sw:phones-off")==0) 
+	{
+		IMap->input=SW_HEADPHONE_INSERT;
+		IMap->value=0;
+	}
+	if (strcasecmp(Name, "sw:mic-off")==0) 
+	{
+		IMap->input=SW_MICROPHONE_INSERT;
+		IMap->value=0;
+	}
+	if (strcasecmp(Name, "sw:microphone-off")==0) 
+	{
+		IMap->input=SW_MICROPHONE_INSERT;
+		IMap->value=0;
+	}
+	if (strcasecmp(Name, "sw:lineout-off")==0) 
+	{
+		IMap->input=SW_LINEOUT_INSERT;
+		IMap->value=0;
+	}
+	if (strcasecmp(Name, "sw:linein-off")==0) 
+	{
+		IMap->input=SW_LINEIN_INSERT;
+		IMap->value=0;
+	}
+
+
+
+
 }
 
 
@@ -223,6 +337,7 @@ const char *ptr;
 
 		if ( strncmp(Name, "abs", 3)==0) ProfileParseAbsInput(IMap, Name);
 		else if (strncmp(Name, "btn:", 4)==0) ProfileParseButtonInput(IMap, Name);
+		else if (strncmp(Name, "sw:", 3)==0) ProfileParseSwitchInput(IMap, Name);
 		else if (strncmp(Name, "xkb:", 4)==0) ProfileParseXKBInput(IMap, Name);
 		else if (strncmp(Name, "xbtn:", 5)==0) ProfileParseXButtonInput(IMap, Name);
 		else return(FALSE);
@@ -324,14 +439,17 @@ return(result);
 }
 
 
-void ProfileLoad(const char *Path)
+int ProfileLoad(const char *Path)
 {
 STREAM *S;
 char *Tempstr=NULL;
+int RetVal=FALSE;
 
 S=STREAMOpen(Path, "r");
 if (S)
 {
+	if (isatty(1)) printf("Loading config: %s\n", Path);
+	RetVal=TRUE;
 	Tempstr=STREAMReadLine(Tempstr, S);
 	while (Tempstr)
 	{
@@ -342,46 +460,59 @@ if (S)
 	}
 	STREAMClose(S);
 }
-else if (isatty(1)) printf("ERROR: failed to load config '%s'\n", Path);
 
 Destroy(Tempstr);
+
+return(RetVal);
 }
 
 
-TProfile *ProfilesReload(const char *Dirs)
+TProfile *ProfilesReload(const char *Paths)
 {
-char *Tempstr=NULL, *Dir=NULL;
+char *Tempstr=NULL, *Path=NULL;
 const char *ptr;
 glob_t Glob;
-int i;
+struct stat Stat;
+int i, Loaded=FALSE;
 
 if (! Profiles) Profiles=ListCreate();
 ListClear(Profiles, ProfileDestroy);
 if (! Grabs) Grabs=(TProfile *) calloc(1, sizeof(TProfile));
 else Destroy(Grabs->Events);
 
-//Dirs is a colon-separated list of directories to search in
-ptr=GetToken(Dirs, ":", &Dir, 0);
+//Paths is a colon-separated list of directories to search in
+ptr=GetToken(Paths, ":", &Path, 0);
 while (ptr)
 {
 
 // ~/ means 'current users home directory'
-if (strncmp(Dir, "~/",2)==0)
+if (strncmp(Path, "~/",2)==0)
 {
-Tempstr=MCopyStr(Tempstr, GetCurrUserHomeDir(), Dir+1, NULL);
-Dir=CopyStr(Dir, Tempstr);
+Tempstr=MCopyStr(Tempstr, GetCurrUserHomeDir(), Path+1, NULL);
+Path=CopyStr(Path, Tempstr);
 }
 
-//glob for config files and load them all
-Tempstr=MCopyStr(Tempstr, Dir, "/*", 0);
-glob(Tempstr, 0, 0, &Glob);
-for (i=0; i < Glob.gl_pathc; i++) ProfileLoad(Glob.gl_pathv[i]);
-globfree(&Glob);
-ptr=GetToken(ptr, ":", &Dir, 0);
+stat(Path, &Stat);
+if (S_ISDIR(Stat.st_mode))
+{
+	//glob for config files and load them all
+	Tempstr=MCopyStr(Tempstr, Path, "/*", 0);
+	glob(Tempstr, 0, 0, &Glob);
+	for (i=0; i < Glob.gl_pathc; i++) 
+	{
+		if (ProfileLoad(Glob.gl_pathv[i])) Loaded=TRUE;
+	}
+	globfree(&Glob);
 }
+else ProfileLoad(Path);
+
+ptr=GetToken(ptr, ":", &Path, 0);
+}
+
+if (Loaded==FALSE) printf("ERROR: failed to load config '%s'\n", Path);
 
 Destroy(Tempstr);
-Destroy(Dir);
+Destroy(Path);
 
 return(Grabs);
 }

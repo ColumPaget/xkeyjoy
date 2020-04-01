@@ -1,5 +1,6 @@
 #include "common.h"
 
+int Flags=0;
 
 int BitIsSet(void *BitMask, int BitPos)
 {

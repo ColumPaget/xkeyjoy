@@ -160,7 +160,7 @@ void ProcessTitleCaptureBuffer(char **argv)
 }
 
 
-void ProcessSetTitle(char *FmtStr, ...)
+void ProcessSetTitle(const char *FmtStr, ...)
 {
     va_list args;
 
@@ -174,7 +174,7 @@ void ProcessSetTitle(char *FmtStr, ...)
 
 
 
-int CreateLockFile(char *FilePath, int Timeout)
+int CreateLockFile(const char *FilePath, int Timeout)
 {
     int fd, result;
 
@@ -198,13 +198,13 @@ int CreateLockFile(char *FilePath, int Timeout)
     return(fd);
 }
 
-int WritePidFile(char *ProgName)
+int WritePidFile(const char *ProgName)
 {
     char *Tempstr=NULL;
     int fd;
 
 
-    if (*ProgName=='/') Tempstr=CopyStr(Tempstr,ProgName);
+    if (*ProgName=='/') Tempstr=CopyStr(Tempstr, ProgName);
     else Tempstr=FormatStr(Tempstr,"/var/run/%s.pid",ProgName);
 
     fd=open(Tempstr,O_CREAT | O_WRONLY,0600);
@@ -765,6 +765,7 @@ int ProcessApplyConfig(const char *Config)
         else if (strcasecmp(Name,"daemon")==0) Flags |= PROC_DAEMON;
         else if (strcasecmp(Name,"demon")==0) Flags |= PROC_DAEMON;
         else if (strcasecmp(Name,"ctrltty")==0) Flags |= PROC_CTRL_TTY;
+        else if (strcasecmp(Name,"innull")==0)  fd_remap_path(0, "/dev/null", O_WRONLY);
         else if (strcasecmp(Name,"outnull")==0)  
 				{
 								fd_remap_path(1, "/dev/null", O_WRONLY);

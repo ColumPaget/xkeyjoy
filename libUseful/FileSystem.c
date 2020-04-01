@@ -4,6 +4,8 @@
 //#include <sys/ioctl.h>
 //#include <sys/resource.h>
 #include <sys/mount.h>
+#include <utime.h>
+#include <time.h>
 
 #ifdef HAVE_XATTR
 #include <sys/xattr.h>
@@ -127,6 +129,24 @@ int FileChangeExtension(const char *FilePath, const char *NewExt)
 }
 
 
+int FileMoveToDir(const char *FilePath, const char *Dir)
+{
+    char *Tempstr=NULL;
+    char *ptr;
+    int result;
+
+    Tempstr=MCopyStr(Tempstr, Dir, "/", GetBasename(FilePath));
+    MakeDirPath(Tempstr, 0700);
+    result=rename(FilePath,Tempstr);
+    if (result !=0) RaiseError(ERRFLAG_ERRNO, "FileMoveToDir", "cannot rename '%s' to '%s'",FilePath, Tempstr);
+
+    DestroyString(Tempstr);
+
+    if (result==0) return(TRUE);
+    else return(FALSE);
+}
+
+
 int FindFilesInPath(const char *File, const char *Path, ListNode *Files)
 {
     char *Tempstr=NULL, *CurrPath=NULL;
@@ -237,6 +257,19 @@ int FileChGroup(const char *FileName, const char *Group)
 }
 
 
+int FileTouch(const char *Path)
+{
+struct utimbuf times;
+
+times.actime=time(NULL); 
+times.modtime=time(NULL); 
+
+if (utime(Path, &times)==0) return(TRUE); 
+
+RaiseError(ERRFLAG_ERRNO, "FileTouch", "failed to update file mtime");
+return(FALSE);
+}
+
 unsigned long FileCopyWithProgress(const char *SrcPath, const char *DestPath, DATA_PROGRESS_CALLBACK Callback)
 {
     STREAM *Src;
@@ -258,11 +291,20 @@ int FileGetBinaryXAttr(char **RetStr, const char *Path, const char *Name)
 
     *RetStr=CopyStr(*RetStr, "");
 #ifdef HAVE_XATTR
+	#ifdef __APPLE__ //'cos some idiot's always got to 'think different'
+    len=getxattr(Path, Name, NULL, 0, 0, 0);
+	#else
     len=getxattr(Path, Name, NULL, 0);
+	#endif 
+
     if (len > 0)
     {
         *RetStr=SetStrLen(*RetStr,len);
+        #ifdef __APPLE__
+        getxattr(Path, Name, *RetStr, len, 0, 0);
+        #else
         getxattr(Path, Name, *RetStr, len);
+        #endif
     }
 #else
     RaiseError(0, "FileGetXAttr", "xattr support not compiled in");
@@ -285,7 +327,11 @@ char *FileGetXAttr(char *RetStr, const char *Path, const char *Name)
 int FileSetBinaryXAttr(const char *Path, const char *Name, const char *Value, int Len)
 {
 #ifdef HAVE_XATTR
+	#ifdef __APPLE__
+    return(setxattr(Path, Name, Value, Len, 0, 0));
+	#else
     return(setxattr(Path, Name, Value, Len, 0));
+	#endif
 #else
     RaiseError(0, "FileSetXAttr", "xattr support not compiled in");
 #endif
@@ -504,3 +550,5 @@ int FileSystemRmDir(const char *Dir)
 {
 	return(FileSystemUnMountFlagsDepth(Dir, 0, UMOUNT_RECURSE | UMOUNT_RMDIR | UMOUNT_RMFILE, 0, 0));
 }
+
+

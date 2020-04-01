@@ -8,25 +8,60 @@
 static const char *ANSIColorStrings[]= {"none","black","red","green","yellow","blue","magenta","cyan","white",NULL};
 
 
+
 int TerminalStrLen(const char *Str)
 {
     const char *ptr;
-    int i=0;
+    int len=0;
 
-    if (! Str) return(i);
+    if (! Str) return(len);
+    for (ptr=Str; *ptr !='\0'; ptr++)
+    {
+    		if (*ptr & 128)
+				{
+					switch (*ptr & 224)
+					{ 
+					case 224:  ptr_incr(&ptr, 1);
+					case 192:  ptr_incr(&ptr, 1);
+					}
+
+					len++;
+				}
+        else if (*ptr=='~')
+        {
+						ptr_incr(&ptr, 1);
+            if (*ptr=='~') len++;
+        }
+        else len++;
+    }
+
+    return(len);
+}
+
+
+char *TerminalStrTrunc(char *Str, int MaxLen)
+{
+    const char *ptr;
+    int len=0;
+
     for (ptr=Str; *ptr !='\0'; ptr++)
     {
         if (*ptr=='~')
         {
             ptr++;
-            if (*ptr=='~') i++;
+            if (*ptr=='~') len++;
         }
-        else i++;
+        else len++;
+
+				if (len > MaxLen)
+				{
+					Str=StrTrunc(Str, ptr+1-Str);
+					break;
+				}
     }
 
-    return(i);
+return(Str);
 }
-
 
 
 
@@ -83,6 +118,9 @@ int ANSIParseColor(const char *Str)
 
     return(val);
 }
+
+
+
 
 
 const char *TerminalTranslateKeyCode(int key)
@@ -242,9 +280,20 @@ const char *TerminalTranslateKeyCode(int key)
     case TKEY_END:
         return("END");
         break;
+
     case TKEY_PAUSE:
         return("PAUSE");
         break;
+
+    case TKEY_PRINT:
+        return("PRINT");
+        break;
+
+   case TKEY_SCROLL_LOCK:
+        return("SCROLL_LOCK");
+        break;
+
+
     case TKEY_FOCUS_IN:
         return("FOCUS_IN");
         break;
@@ -269,6 +318,54 @@ const char *TerminalTranslateKeyCode(int key)
     case TKEY_MENU:
         return("MENU");
         break;
+
+    case TKEY_WWW:
+        return("WWW");
+        break;
+
+    case TKEY_HOME_PAGE:
+        return("HOMEPAGE");
+        break;
+
+    case TKEY_FAVES:
+        return("FAVES");
+        break;
+
+    case TKEY_SEARCH:
+        return("SEARCH");
+        break;
+
+		case TKEY_BACK:
+				return("BACK");
+				break;
+
+		case TKEY_FORWARD:
+				return("FORWARD");
+				break;
+
+		case TKEY_MAIL:
+				return("MAIL");
+				break;
+
+		case TKEY_MESSENGER:
+				return("MESSENGER");
+				break;
+
+		case TKEY_MEDIA:
+				return("MEDIA");
+				break;
+
+		case TKEY_MEDIA_MUTE:
+				return("MUTE");
+				break;
+
+		case TKEY_MYCOMPUTER:
+				return("MYCOMPUTER");
+				break;
+
+		case TKEY_CALC:
+				return("CALCULATOR");
+				break;
 
     case TKEY_SHIFT_UP:
         return("SHIFT_UP");
@@ -407,6 +504,54 @@ const char *TerminalTranslateKeyCode(int key)
     case TKEY_ALT_MENU:
         return("ALT_MENU");
         break;
+
+		case TKEY_ALT_F1:
+				return("ALT_F1");
+				break;
+
+		case TKEY_ALT_F2:
+				return("ALT_F2");
+				break;
+
+		case TKEY_ALT_F3:
+				return("ALT_F3");
+				break;
+
+		case TKEY_ALT_F4:
+				return("ALT_F4");
+				break;
+
+		case TKEY_ALT_F5:
+				return("ALT_F5");
+				break;
+
+		case TKEY_ALT_F6:
+				return("ALT_F6");
+				break;
+
+		case TKEY_ALT_F7:
+				return("ALT_F7");
+				break;
+
+		case TKEY_ALT_F8:
+				return("ALT_F8");
+				break;
+
+		case TKEY_ALT_F9:
+				return("ALT_F9");
+				break;
+
+		case TKEY_ALT_F10:
+				return("ALT_F10");
+				break;
+
+		case TKEY_ALT_F11:
+				return("ALT_F11");
+				break;
+
+		case TKEY_ALT_F12:
+				return("ALT_F12");
+				break;
     }
 
     KeyStr[0]='?';
@@ -427,23 +572,24 @@ if (*mod) *mod=0;
 //read as many modifiers as are found, then break
 while (1)
 {
-	if (strncasecmp(str, "shift-", 6)==0)
-	{
-	if (mod !=NULL) *mod |= KEYMOD_SHIFT;
-	str+=6;
-	}
-	else if (strncasecmp(str, "ctrl-", 5)==0)
-	{
-	if (mod !=NULL) *mod |= KEYMOD_CTRL;
-	str+=5;
-	}
-	else if (strncasecmp(str, "alt-", 4)==0)
-	{
-		if (mod !=NULL) *mod |= KEYMOD_ALT;
-		str+=4;
-	}
-	else break;
+  if (strncasecmp(str, "shift-", 6)==0)
+  {
+  if (mod !=NULL) *mod |= KEYMOD_SHIFT;
+  str+=6;
+  }
+  else if (strncasecmp(str, "ctrl-", 5)==0)
+  {
+  if (mod !=NULL) *mod |= KEYMOD_CTRL;
+  str+=5;
+  }
+  else if (strncasecmp(str, "alt-", 4)==0)
+  {
+    if (mod !=NULL) *mod |= KEYMOD_ALT;
+    str+=4;
+  }
+  else break;
 }
+
 
 switch (*str)
 {
@@ -581,7 +727,7 @@ case 'v':
 case 'V':
 	if (strcasecmp(str, "volup")==0) return(TKEY_VOL_UP);
 	if (strcasecmp(str, "voldn")==0) return(TKEY_VOL_DOWN);
-	if (strcasecmp(str, "voldown")==0) return(TKEY_UP);
+	if (strcasecmp(str, "voldown")==0) return(TKEY_VOL_DOWN);
 break;
 
 case 'w':
@@ -771,8 +917,8 @@ char *TerminalCommandStr(char *RetStr, int Cmd, int Arg1, int Arg2)
         break;
 
     case TERM_SCROLL:
-        if (Arg1 < 0) Tempstr=FormatStr(Tempstr,"\x1b[%dT",0-Arg1);
-        else Tempstr=FormatStr(Tempstr,"\x1b[%dS",Arg1);
+        if (Arg1 < 0) Tempstr=FormatStr(Tempstr,"\x1b[%dT", 0 - Arg1);
+        else Tempstr=FormatStr(Tempstr,"\x1b[%dS", Arg1);
         RetStr=CatStr(RetStr,Tempstr);
         break;
 
@@ -983,9 +1129,230 @@ void TerminalPutStr(const char *Str, STREAM *S)
 
 
 
+//Getting desperate on what to name these, this one deals
+//with a sequence that goes ESC[;1  
+static int TerminalReadCSISeqSemicolon1(STREAM *S)
+{
+int inchar;
+
+inchar=STREAMReadChar(S);
+switch (inchar)
+{
+		case '2':
+ 			inchar=STREAMReadChar(S);
+			switch (inchar)
+			{
+							case 'A': return(TKEY_SHIFT_UP); break;
+							case 'B': return(TKEY_SHIFT_DOWN); break;
+							case 'C': return(TKEY_SHIFT_RIGHT); break;
+							case 'D': return(TKEY_SHIFT_LEFT); break;
+							case 'F': return(TKEY_SHIFT_END); break;
+							case 'H': return(TKEY_SHIFT_HOME); break;
+							case 'P': return(TKEY_SHIFT_F1); break;
+							case 'Q': return(TKEY_SHIFT_F2); break;
+							case 'R': return(TKEY_SHIFT_F3); break;
+							case 'S': return(TKEY_SHIFT_F4); break;
+			}
+			break;
+
+			case '3':
+ 			inchar=STREAMReadChar(S);
+			switch (inchar)
+			{
+							case 'A': return(TKEY_ALT_UP); break;
+							case 'B': return(TKEY_ALT_DOWN); break;
+							case 'C': return(TKEY_ALT_RIGHT); break;
+							case 'D': return(TKEY_ALT_LEFT); break;
+							case 'F': return(TKEY_ALT_END); break;
+							case 'H': return(TKEY_ALT_HOME); break;
+
+							case 'P': return(TKEY_ALT_F1); break;
+							case 'Q': return(TKEY_ALT_F2); break;
+							case 'R': return(TKEY_ALT_F3); break;
+							case 'S': return(TKEY_ALT_F4); break;
+			}
+			break;
+
+	
+			case '5':
+ 			inchar=STREAMReadChar(S);
+			switch (inchar)
+			{
+							case 'A': return(TKEY_CTRL_UP); break;
+							case 'B': return(TKEY_CTRL_DOWN); break;
+							case 'C': return(TKEY_CTRL_RIGHT); break;
+							case 'D': return(TKEY_CTRL_LEFT); break;
+							case 'F': return(TKEY_CTRL_END); break;
+							case 'H': return(TKEY_CTRL_HOME); break;
+
+							case 'P': return(TKEY_CTRL_F1); break;
+							case 'Q': return(TKEY_CTRL_F2); break;
+							case 'R': return(TKEY_CTRL_F3); break;
+							case 'S': return(TKEY_CTRL_F4); break;
+			}
+			break;
+		}
+
+return(0);
+}
 
 
-int TerminalReadCSISeq(STREAM *S, char PrevChar)
+
+//Getting desperate on what to name these, this one deals
+//with a sequence that goes ESC[;2  
+static int TerminalReadCSISeqSemicolon2(STREAM *S)
+{
+int inchar;
+
+inchar=STREAMReadChar(S);
+switch (inchar)
+{
+		case '2':
+ 			inchar=STREAMReadChar(S);
+			switch (inchar)
+			{
+							case 'A': return(TKEY_SHIFT_UP); break;
+							case 'B': return(TKEY_SHIFT_DOWN); break;
+							case 'C': return(TKEY_SHIFT_RIGHT); break;
+							case 'D': return(TKEY_SHIFT_LEFT); break;
+							case 'F': return(TKEY_SHIFT_END); break;
+							case 'H': return(TKEY_SHIFT_HOME); break;
+			}
+			break;
+
+			case '3':
+ 			inchar=STREAMReadChar(S);
+			switch (inchar)
+			{
+							case 'A': return(TKEY_ALT_UP); break;
+							case 'B': return(TKEY_ALT_DOWN); break;
+							case 'C': return(TKEY_ALT_RIGHT); break;
+							case 'D': return(TKEY_ALT_LEFT); break;
+							case 'F': return(TKEY_ALT_END); break;
+							case 'H': return(TKEY_ALT_HOME); break;
+			}
+			break;
+
+	
+			case '5':
+ 			inchar=STREAMReadChar(S);
+			switch (inchar)
+			{
+							case 'A': return(TKEY_CTRL_UP); break;
+							case 'B': return(TKEY_CTRL_DOWN); break;
+							case 'C': return(TKEY_CTRL_RIGHT); break;
+							case 'D': return(TKEY_CTRL_LEFT); break;
+							case 'F': return(TKEY_CTRL_END); break;
+							case 'H': return(TKEY_CTRL_HOME); break;
+
+							case 'P': return(TKEY_CTRL_F1); break;
+							case 'Q': return(TKEY_CTRL_F2); break;
+							case 'R': return(TKEY_CTRL_F3); break;
+							case 'S': return(TKEY_CTRL_F4); break;
+			}
+			break;
+		}
+
+return(0);
+}
+
+
+
+int TerminalReadCSISeqSemicolon(STREAM *S, int val)
+{
+int inchar;
+
+inchar=STREAMReadChar(S);
+switch (inchar)
+{
+		case '2':
+		inchar=STREAMReadChar(S);
+		switch (inchar)
+		{
+			case '~':
+				switch(val)
+				{
+					case 5: return(TKEY_SHIFT_PGUP); break;
+					case 6: return(TKEY_SHIFT_PGDN); break;
+					case 15: return(TKEY_SHIFT_F5); break;
+					case 17: return(TKEY_SHIFT_F6); break;
+					case 18: return(TKEY_SHIFT_F7); break;
+					case 19: return(TKEY_SHIFT_F8); break;
+					case 20: return(TKEY_SHIFT_F9); break;
+					case 21: return(TKEY_SHIFT_F10); break;
+					case 23: return(TKEY_SHIFT_F11); break;
+					case 24: return(TKEY_SHIFT_F12); break;
+				}
+			break;
+		}
+		break;
+
+		case '3':
+		inchar=STREAMReadChar(S);
+		switch (inchar)
+		{
+			case '~':
+				switch(val)
+				{
+					case 5: return(TKEY_ALT_PGUP); break;
+					case 6: return(TKEY_ALT_PGDN); break;
+					case 15: return(TKEY_ALT_F5); break;
+					case 17: return(TKEY_ALT_F6); break;
+					case 18: return(TKEY_ALT_F7); break;
+					case 19: return(TKEY_ALT_F8); break;
+					case 20: return(TKEY_ALT_F9); break;
+					case 21: return(TKEY_ALT_F10); break;
+					case 23: return(TKEY_ALT_F11); break;
+					case 24: return(TKEY_ALT_F12); break;
+				}
+			break;
+		}
+		break;
+
+		case '5':
+		inchar=STREAMReadChar(S);
+		switch (inchar)
+		{
+			case '~':
+				switch(val)
+				{
+					case 5: return(TKEY_CTRL_PGUP); break;
+					case 6: return(TKEY_CTRL_PGDN); break;
+					case 15: return(TKEY_CTRL_F5); break;
+					case 17: return(TKEY_CTRL_F6); break;
+					case 18: return(TKEY_CTRL_F7); break;
+					case 19: return(TKEY_CTRL_F8); break;
+					case 20: return(TKEY_CTRL_F9); break;
+					case 21: return(TKEY_CTRL_F10); break;
+					case 23: return(TKEY_CTRL_F11); break;
+					case 24: return(TKEY_CTRL_F12); break;
+				}
+			break;
+		}
+		break;
+
+
+		case '~':
+		switch (val)
+		{
+		case 5: return(TKEY_CTRL_PGUP); break;
+		case 6: return(TKEY_CTRL_PGDN); break;
+		case 15: return(TKEY_CTRL_F5); break;
+		case 17: return(TKEY_CTRL_F6); break;
+		case 18: return(TKEY_CTRL_F7); break;
+		case 19: return(TKEY_CTRL_F9); break;
+		case 20: return(TKEY_CTRL_F10); break;
+		case 21: return(TKEY_CTRL_F11); break;
+		case 22: return(TKEY_CTRL_F12); break;
+		}
+		break;
+}
+
+return(0);
+}
+
+
+static int TerminalReadCSISeq(STREAM *S, char PrevChar)
 {
     char *Tempstr=NULL;
     int inchar, val;
@@ -1234,6 +1601,14 @@ int TerminalReadCSISeq(STREAM *S, char PrevChar)
         }
         break;
 
+			case ';':
+				switch (val)
+				{
+					case 1:  return(TerminalReadCSISeqSemicolon1(S)); break;
+					case 2:  return(TerminalReadCSISeqSemicolon2(S)); break;
+					default:  return(TerminalReadCSISeqSemicolon(S, val)); break;
+				} 
+			break;
 
     }
 
@@ -1262,6 +1637,19 @@ int TerminalReadChar(STREAM *S)
             inchar=STREAMReadChar(S);
             switch (inchar)
             {
+            case 'a':
+                return(TKEY_SHIFT_UP);
+                break;
+            case 'b':
+                return(TKEY_SHIFT_DOWN);
+                break;
+            case 'c':
+                return(TKEY_SHIFT_RIGHT);
+                break;
+            case 'd':
+                return(TKEY_SHIFT_LEFT);
+                break;
+
             case 'A':
                 return(TKEY_UP);
                 break;
@@ -1392,6 +1780,13 @@ char *TerminalReadText(char *RetStr, int Flags, STREAM *S)
 
         switch (inchar)
         {
+				case ESCAPE:
+				Destroy(RetStr);
+				return(NULL);
+				break;
+
+				case STREAM_TIMEOUT:
+				case STREAM_NODATA:
         case '\n':
         case '\r':
             break;
@@ -1456,6 +1851,7 @@ void TerminalBarsInit(STREAM *S)
 {
     int top=0, bottom=0, cols, rows;
     ListNode *Curr;
+		char *Tempstr=NULL;
     TERMBAR *TB;
 
     TerminalGeometry(S, &cols, &rows);
@@ -1473,10 +1869,23 @@ void TerminalBarsInit(STREAM *S)
 
     if ((top > 0) || (bottom > 0))
     {
-        if (top > 0) STREAMSetValue(S, "Terminal:top","1");
+        if (top > 0) 
+				{
+						Tempstr=FormatStr(Tempstr, "%d", top);			
+						STREAMSetValue(S, "Terminal:top",Tempstr);
+				}
+
+        if (bottom > 0) 
+				{
+						Tempstr=FormatStr(Tempstr, "%d", bottom);			
+						STREAMSetValue(S, "Terminal:bottom",Tempstr);
+				}
+
         TerminalCommand(TERM_SCROLL_REGION, top+2, rows-(top+bottom), S);
         TerminalCommand(TERM_CURSOR_MOVE, 0, top+2, S);
     }
+
+Destroy(Tempstr);
 }
 
 
@@ -1518,7 +1927,18 @@ void TerminalSetup(STREAM *S, const char *Config)
 
 void TerminalReset(STREAM *S)
 {
-    if (atoi(STREAMGetValue(S, "Terminal:top")) > 0) STREAMWriteLine("\x1b[m\x1b[r", S);
+int top=0, bottom=0;
+const char *ptr;
+
+    ptr=STREAMGetValue(S, "Terminal:top");
+    if (ptr) top = atoi(ptr);
+	 
+    ptr=STREAMGetValue(S, "Terminal:bottom");
+    if (ptr) bottom = atoi(ptr);
+
+    if ((top > 0) || (bottom > 0)) STREAMWriteLine("\x1b[m\x1b[r", S);
+
+		STREAMFlush(S);
     if (isatty(S->in_fd)) TTYReset(S->in_fd);
 }
 
@@ -1645,6 +2065,7 @@ char *TerminalBarReadText(char *RetStr, TERMBAR *TB, int Flags, const char *Prom
     {
         Func=STREAMGetItem(TB->Term, "KeyCallbackFunc");
         if (Func) Func(TB->Term, inchar);
+
         switch (inchar)
         {
         case STREAM_TIMEOUT:
@@ -1808,10 +2229,12 @@ free(Item);
 
 
 
+
 void TerminalMenuDraw(TERMMENU *Menu)
 {
 		ListNode *Curr, *Prev;
-		char *p_Color=NULL, *Tempstr=NULL, *Output=NULL;
+		char *Contents=NULL, *Tempstr=NULL, *Output=NULL;
+		char *p_Attribs, *p_Cursor, *p_Color=NULL;
 		int y, yend, count;
 
 		y=Menu->y;
@@ -1835,23 +2258,29 @@ void TerminalMenuDraw(TERMMENU *Menu)
 		while (Curr)
 		{
 					TerminalCursorMove(Menu->Term, Menu->x, y);
-					if (Menu->Options->Side==Curr) Tempstr=MCopyStr(Tempstr, Menu->MenuCursorLeft, "> ", NULL);
-					else Tempstr=MCopyStr(Tempstr, Menu->MenuAttribs, "  ", NULL);
+					if (Menu->Options->Side==Curr) 
+					{
+						p_Attribs=Menu->MenuCursorLeft;
+						p_Cursor="> ";
+					}
+					else 
+					{
+						p_Attribs=Menu->MenuAttribs;
+						p_Cursor="  ";
+					}
 
-
-					count=TerminalStrLen(Curr->Tag);
-					if (count > Menu->wid-2) count=Menu->wid-2;
-					Tempstr=CatStrLen(Tempstr, Curr->Tag, count);
-
-
+					Contents=ReplaceStr(Contents, Curr->Tag, "~0", p_Attribs);
+					Contents=TerminalStrTrunc(Contents, Menu->wid-4);
+					
+					Tempstr=MCopyStr(Tempstr, p_Attribs, p_Cursor, Contents, NULL);
 
 					Output=CopyStr(Output, "");
-					Output=TerminalFormatStr(Output, Tempstr, Menu->Term);
+					TerminalFormatSubStr(Tempstr, &Output, Menu->Term);
 
 					//length has two added for the leading space for the cursor
-					count+=2;
 
-					while (count < Menu->wid)
+					count=TerminalStrLen(Contents);
+					while (count < Menu->wid-2)
 					{
 							Output=CatStr(Output, " ");
 							count++;
@@ -1872,6 +2301,8 @@ void TerminalMenuDraw(TERMMENU *Menu)
 		}
 
 		STREAMFlush(Menu->Term);
+
+		Destroy(Contents);
 		Destroy(Tempstr);
 		Destroy(Output);
 }
