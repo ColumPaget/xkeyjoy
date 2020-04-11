@@ -196,35 +196,41 @@ static unsigned int ProfileParseKey(const char *Value, int *mods)
 {
 int kv;
 
-		if (! StrValid(Value)) return(0);
+if (mods != NULL) *mods=0; //make sure this doesn't inherit values from elsewhere if mods not set
 
-		if (strncasecmp(Value,"xbtn:",5)==0)
-		{
-			if (strcasecmp(Value, "xbtn:left")==0) return(MOUSE_BTN_1);
-			if (strcasecmp(Value, "xbtn:middle")==0) return(MOUSE_BTN_2);
-			if (strcasecmp(Value, "xbtn:right")==0) return(MOUSE_BTN_3);
-			
-			if (strcasecmp(Value, "xbtn:1")==0) return(MOUSE_BTN_1);
-			if (strcasecmp(Value, "xbtn:2")==0) return(MOUSE_BTN_2);
-			if (strcasecmp(Value, "xbtn:3")==0) return(MOUSE_BTN_3);
-			if (strcasecmp(Value, "xbtn:4")==0) return(MOUSE_BTN_4);
-			if (strcasecmp(Value, "xbtn:5")==0) return(MOUSE_BTN_5);
-			if (strcasecmp(Value, "xbtn:6")==0) return(MOUSE_BTN_6);
-			if (strcasecmp(Value, "xbtn:7")==0) return(MOUSE_BTN_7);
-			if (strcasecmp(Value, "xbtn:8")==0) return(MOUSE_BTN_8);
-			if (strcasecmp(Value, "xbtn:9")==0) return(MOUSE_BTN_9);
-			if (strcasecmp(Value, "xbtn:10")==0) return(MOUSE_BTN_10);
-			if (strcasecmp(Value, "xbtn:11")==0) return(MOUSE_BTN_11);
-			if (strcasecmp(Value, "xbtn:12")==0) return(MOUSE_BTN_12);
-			if (strcasecmp(Value, "xbtn:13")==0) return(MOUSE_BTN_13);
-			if (strcasecmp(Value, "xbtn:14")==0) return(MOUSE_BTN_14);
-		}
+	if (! StrValid(Value)) return(0);
+
+	if (strncasecmp(Value,"xbtn:",5)==0)
+	{
+		if (strcasecmp(Value, "xbtn:left")==0) return(MOUSE_BTN_1);
+		if (strcasecmp(Value, "xbtn:middle")==0) return(MOUSE_BTN_2);
+		if (strcasecmp(Value, "xbtn:right")==0) return(MOUSE_BTN_3);
 		
-		kv=TerminalTranslateKeyStrWithMod(Value, mods);
-		return(kv);
+		if (strcasecmp(Value, "xbtn:1")==0) return(MOUSE_BTN_1);
+		if (strcasecmp(Value, "xbtn:2")==0) return(MOUSE_BTN_2);
+		if (strcasecmp(Value, "xbtn:3")==0) return(MOUSE_BTN_3);
+		if (strcasecmp(Value, "xbtn:4")==0) return(MOUSE_BTN_4);
+		if (strcasecmp(Value, "xbtn:5")==0) return(MOUSE_BTN_5);
+		if (strcasecmp(Value, "xbtn:6")==0) return(MOUSE_BTN_6);
+		if (strcasecmp(Value, "xbtn:7")==0) return(MOUSE_BTN_7);
+		if (strcasecmp(Value, "xbtn:8")==0) return(MOUSE_BTN_8);
+		if (strcasecmp(Value, "xbtn:9")==0) return(MOUSE_BTN_9);
+		if (strcasecmp(Value, "xbtn:10")==0) return(MOUSE_BTN_10);
+		if (strcasecmp(Value, "xbtn:11")==0) return(MOUSE_BTN_11);
+		if (strcasecmp(Value, "xbtn:12")==0) return(MOUSE_BTN_12);
+		if (strcasecmp(Value, "xbtn:13")==0) return(MOUSE_BTN_13);
+		if (strcasecmp(Value, "xbtn:14")==0) return(MOUSE_BTN_14);
+	}
+		
+	kv=TerminalTranslateKeyStrWithMod(Value, mods);
+	return(kv);
 }
 
 
+//In addition to adding a grab to a profile, we add it to a global list of all grabs.
+//This is because we don't change our grabs when we change window, instead we listen to all
+//grabs all the time, then decide what action to take when they arrive, depending on whether
+//a window has a grab active or not
 static void ProfileAddGrab(TInputMap *IMap)
 {
 int i;
@@ -237,6 +243,7 @@ int i;
 	Grabs->Events=(TInputMap *) realloc(Grabs->Events, (Grabs->NoOfEvents+1) * sizeof(TInputMap));
 	Grabs->Events[Grabs->NoOfEvents].intype=IMap->intype;
 	Grabs->Events[Grabs->NoOfEvents].input=IMap->input;
+	Grabs->Events[Grabs->NoOfEvents].inmods=IMap->inmods;
 	Grabs->NoOfEvents++;
 }
 
@@ -307,7 +314,7 @@ char *Name=NULL, *Value=NULL, *Tempstr=NULL;
 const char *ptr;
 
 RetStr=CopyStr(RetStr, "");
-Tempstr=MCopyStr(Tempstr, Config, " ", AddToAllProfiles, NULL);
+Tempstr=MCopyStr(Tempstr, Config, " ", AddToAllProfiles, " ", NULL);
 ptr=GetNameValuePair(Tempstr, "\\S", "=", &Name, &Value);
 while (ptr)
 {
@@ -372,7 +379,7 @@ unsigned int in, out;
 if (! Profiles) Profiles=ListCreate();
 
 ptr=GetToken(RawConfig, "\\S", &Value, GETTOKEN_QUOTES);
-if (strcmp(Value, "all")==0) AddToAllProfiles=CopyStr(AddToAllProfiles, ptr);
+if (strcmp(Value, "all")==0) AddToAllProfiles=MCatStr(AddToAllProfiles, " ", ptr, NULL);
 else
 {
 	Profile=(TProfile *) calloc(1, sizeof(TProfile));
@@ -455,6 +462,10 @@ if (S)
 	{
 		StripTrailingWhitespace(Tempstr);
 		StripLeadingWhitespace(Tempstr);
+
+		//anything after a '#' is a comment, so truncate lines at that character
+		StrTruncChar(Tempstr, '#');
+
 		if (StrValid(Tempstr)) ProfileParse(Tempstr);
 		Tempstr=STREAMReadLine(Tempstr, S);
 	}
@@ -467,6 +478,23 @@ return(RetVal);
 }
 
 
+void ProfilesClear()
+{
+ListClear(Profiles, ProfileDestroy);
+
+//we build a global list of ALL keygrabs, and listen to them all,
+//then perform an action for the current window, or else just pass
+//the keystroke through
+if (! Grabs) Grabs=(TProfile *) calloc(1, sizeof(TProfile));
+else Destroy(Grabs->Events);
+
+//must do this if we've destroyed Grabs->Events!
+Grabs->NoOfEvents=0;
+
+AddToAllProfiles=CopyStr(AddToAllProfiles, "");
+}
+
+
 TProfile *ProfilesReload(const char *Paths)
 {
 char *Tempstr=NULL, *Path=NULL;
@@ -476,9 +504,7 @@ struct stat Stat;
 int i, Loaded=FALSE;
 
 if (! Profiles) Profiles=ListCreate();
-ListClear(Profiles, ProfileDestroy);
-if (! Grabs) Grabs=(TProfile *) calloc(1, sizeof(TProfile));
-else Destroy(Grabs->Events);
+ProfilesClear();
 
 //Paths is a colon-separated list of directories to search in
 ptr=GetToken(Paths, ":", &Path, 0);

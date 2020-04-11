@@ -10,7 +10,7 @@ Window X11FindWin(const char *Name);
 char *X11WindowGetCmdLine(char *RetStr, Window win);
 
 void X11SendEvent(Window win, unsigned int key, unsigned int mods, int state);
-int X11ProcessEvents(TInputMap *Input);
+int X11GetEvent(TInputMap *Input);
 
 int X11Init();
 void X11SetupGrabs(TProfile *Profile);

@@ -685,6 +685,7 @@ case 'p':
 case 'P':
     if (strcasecmp(str, "pgup")==0) return(TKEY_PGUP);
     if (strcasecmp(str, "pgdn")==0) return(TKEY_PGDN);
+    if (strcasecmp(str, "pgdown")==0) return(TKEY_PGDN);
     if (strcasecmp(str, "pause")==0) return(TKEY_PAUSE);
     if (strcasecmp(str, "print")==0) return(TKEY_PRINT);
     if (strcasecmp(str, "play")==0) return(TKEY_MEDIA_PAUSE);

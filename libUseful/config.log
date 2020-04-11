@@ -69,7 +69,7 @@ PATH: /opt/rust-1.36.0/bin
 PATH: /opt/sound-studio/bin
 PATH: /opt/tcl-8.6.9/bin
 PATH: /opt/tiffprogs-4.0.8/bin
-PATH: /opt/wine-4.9/bin
+PATH: /opt/wine-5.0/bin
 PATH: /opt/xboinc_client-7.14.2/bin
 
 

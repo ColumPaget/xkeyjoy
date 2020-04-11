@@ -47,6 +47,10 @@ for (i=0; i < Profile->NoOfEvents; i++)
 	target=X11FindWin(IMap->target);
 	if (! target) target=win;
 
+	if ((ev->intype==EV_XKB) && (IMap->intype==EV_XKB))
+	{
+					//printf("XKB: value=%d %d:%d %d:%d\n", ev->value, ev->input, IMap->input, ev->inmods, IMap->inmods);
+	}
 	if ( (ev->intype==IMap->intype) && (ev->input==IMap->input) && (ev->inmods==IMap->inmods) )
 	{
 		matched=TRUE;
@@ -89,7 +93,11 @@ for (i=0; i < Profile->NoOfEvents; i++)
 					{
 						if (IfEventTrigger(ev, IMap))
 						{
-							if (strncmp(IMap->target, "exec:", 5)==0) Spawn(IMap->target +5, "");
+							if (strncmp(IMap->target, "exec:", 5)==0) 
+							{
+								printf("RUN COMMAND: %s\n", IMap->target + 5);
+								Spawn(IMap->target +5, "");
+							}
 						}
 					}
 					else X11SendEvent(target, IMap->output, IMap->outmods, ev->value);
@@ -151,9 +159,13 @@ TProfile *HandleWindowChange(Window win)
 char *Tempstr=NULL;
 TProfile *Profile;
 
-//X11ReleaseKeygrabs(win);
+//We do not do anything regarding to keygrabs here. This is because we
+//don't change keygrabs every time a window changes, instead we listen to
+//all keygrabs for all windows all the time, and then decide what to do when
+//a key is pressed. If the right window for a grab is not currently active
+//then we just send the keystroke to the current window
+//Thus grabs are only registered when we ReloadProfiles
 Tempstr=X11WindowGetCmdLine(Tempstr, win);
-
 Profile=ProfileForApp(Tempstr);
 if (Flags & FLAG_DEBUG) printf("Winchange: %s %x\n", Tempstr, win);
 
@@ -170,6 +182,11 @@ TProfile *Grabs;
 	Grabs=ProfilesReload(ConfigPath);
 	ProfilesNeedReload=FALSE;
 
+	//we only setup key/button grabs with X11 when we load our config 
+	//ProfilesReload returns a list of all grabs in the config file
+	//and we listen to all of them, and then decide whether the current
+	//window has a grab registered when a grab happens. If it doesn't
+	//we just pass the keystroke through to the current window
 	X11SetupGrabs(Grabs);
 }
 
@@ -179,7 +196,7 @@ void HandleX11Keygrabs(Window win, TProfile *Profile)
 {
 TInputMap ev;
 
-X11ProcessEvents(&ev);
+X11GetEvent(&ev);
 if (! ProcessEvent(Profile, win, &ev)) X11SendEvent(win, ev.input, ev.inmods, ev.value);
 }
 
@@ -333,7 +350,7 @@ else
 			prev_win=win;
 		}
 
-		tv.tv_sec=3;
+		tv.tv_sec=1;
 		tv.tv_usec=0;
 		S=STREAMSelect(Inputs, &tv);
 		if (S)

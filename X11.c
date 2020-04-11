@@ -540,6 +540,7 @@ if (mods & KEYMOD_ALT)   modmask |= Mod1Mask;
 sym=XKeysymToKeycode(display, X11TranslateKey(key));
 
 if (sym >0) result=XGrabKey(display, sym, mods, RootWin, False, GrabModeAsync, GrabModeAsync);
+if (Flags & FLAG_DEBUG) printf("Setup Keygrabs sym=%d key=%d mods=%d RootWin=%d result=%d\n", sym, key, mods, RootWin, result);
 }
 
 int X11AddButtonGrab(int btn)
@@ -566,7 +567,7 @@ int i;
 
 
 
-int X11ProcessEvents(TInputMap *Input)
+int X11GetEvent(TInputMap *Input)
 {
 XEvent ev;
 
