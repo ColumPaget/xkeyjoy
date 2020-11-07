@@ -367,6 +367,21 @@ const char *ptr;
 }
 
 
+TProfile *ProfileGet(const char *Apps)
+{
+ListNode *Node;
+TProfile *Profile;
+
+	Node=ListFindNamedItem(Profiles, Apps);
+	if (Node) return((TProfile *) Node->Item);
+
+	Profile=(TProfile *) calloc(1, sizeof(TProfile));
+	Profile->Events=(TInputMap *) calloc(255, sizeof(TInputMap));
+	Profile->Apps=CopyStr(Profile->Apps, Apps);
+	ListAddNamedItem(Profiles, Profile->Apps, Profile);
+	
+	return(Profile);
+}
 
 TProfile *ProfileParse(const char *RawConfig)
 {
@@ -382,10 +397,8 @@ ptr=GetToken(RawConfig, "\\S", &Value, GETTOKEN_QUOTES);
 if (strcmp(Value, "all")==0) AddToAllProfiles=MCatStr(AddToAllProfiles, " ", ptr, NULL);
 else
 {
-	Profile=(TProfile *) calloc(1, sizeof(TProfile));
-	Profile->Events=(TInputMap *) calloc(255, sizeof(TInputMap));
-	Profile->Apps=CopyStr(Profile->Apps, Value);
-	
+
+	Profile=ProfileGet(Value);
 	if (Profile)
 	{
 		Config=ProfilePreProcess(Config, ptr);
@@ -403,7 +416,6 @@ else
 			ptr=GetNameValuePair(ptr, "\\S", "=", &Name, &Value);
 		}
 	
-	ListAddNamedItem(Profiles, Profile->Apps, Profile);
 	}
 }
 

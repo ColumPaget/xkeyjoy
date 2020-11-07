@@ -104,6 +104,16 @@ all xkb:calc=exec:xterm xkb:www=exec:otter-browser
 
 will cause these keygrabs to be added to all profiles defined in the config file.
 
+
+Multiple lines can be written for the same target. For instance:
+
+```
+default xkb:shift-f2=exec:qtfm
+default xkb:shift-f3=exec:qasmixer
+default xkb:shift-f4=exec:cutesnapshot
+default xkb:shift-f5=exec:xosview
+```
+
 Finally,
 
 ```
