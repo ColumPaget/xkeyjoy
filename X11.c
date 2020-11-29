@@ -8,11 +8,22 @@
 
 #include "proc.h"
 
+#define EVENT_MASK (EnterWindowMask | LeaveWindowMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask)
+
+#define WINSTATE_FULLSCREEN 1
+#define WINSTATE_SHADED 2
+#define WINSTATE_STICKY 4
+#define WINSTATE_RAISED 8
+#define WINSTATE_LOWERED 16
+#define WINSTATE_MAX_X   32
+#define WINSTATE_MAX_Y   64
+
 Display *display;
 Window RootWin;
-Atom WM_PID;
 
-#define EVENT_MASK (EnterWindowMask | LeaveWindowMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask)
+int ButtonMask=0;
+
+
 
 Window X11GetFocusedWin()
 {
@@ -58,7 +69,63 @@ void X11SetupEvents(Window CurrWin)
 	//XSelectInput(display, CurrWin, KeyPressMask | ButtonPressMask | ButtonReleaseMask );
 
 	XFlush(display);
-}	
+}
+
+int X11WindowGetState(Window win)
+{
+unsigned long nprops=0, trash; 
+unsigned char *p_Data;
+int PropFormat, i;
+Atom WM_STATE, WM_SHADED, WM_STICKY, WM_FULLSCREEN, WM_ABOVE, WM_BELOW, WM_MAX_X, WM_MAX_Y, PType, *AtomList;
+int WinState=0;
+
+WM_STATE=XInternAtom(display, "_NET_WM_STATE", False);
+WM_SHADED=XInternAtom(display, "_NET_WM_STATE_SHADED", False);
+WM_STICKY=XInternAtom(display, "_NET_WM_STATE_STICKY", False);
+WM_FULLSCREEN=XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
+WM_ABOVE=XInternAtom(display, "_NET_WM_STATE_ABOVE", False);
+WM_BELOW=XInternAtom(display, "_NET_WM_STATE_BELOW", False);
+WM_MAX_X=XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+WM_MAX_Y=XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+
+XGetWindowProperty(display, win, WM_STATE, 0, 1024, 0, AnyPropertyType, &PType, &PropFormat, &nprops, &trash, &p_Data);
+
+if (nprops > 0)
+{
+AtomList=(Atom *) p_Data;
+for (i=0; i < nprops; i++) 
+{
+	if (AtomList[i]==WM_SHADED) WinState |= WINSTATE_SHADED;
+	if (AtomList[i]==WM_STICKY) WinState |= WINSTATE_STICKY;
+	if (AtomList[i]==WM_FULLSCREEN) WinState |= WINSTATE_FULLSCREEN;
+	if (AtomList[i]==WM_ABOVE) WinState |= WINSTATE_RAISED;
+	if (AtomList[i]==WM_BELOW) WinState |= WINSTATE_LOWERED;
+	if (AtomList[i]==WM_MAX_X) WinState |= WINSTATE_MAX_X;
+	if (AtomList[i]==WM_MAX_Y) WinState |= WINSTATE_MAX_Y;
+}
+}
+
+XFree(p_Data);
+return(WinState);
+}
+
+
+pid_t X11WindowGetPID(Window win)
+{
+unsigned long nprops=0, trash; 
+unsigned char *p_Data;
+pid_t pid=0;
+int PropFormat;
+Atom WM_PID, PType;
+
+WM_PID=XInternAtom(display, "_NET_WM_PID", False);
+XGetWindowProperty(display, win, WM_PID, 0, 1024, 0, AnyPropertyType, &PType, &PropFormat, &nprops, &trash, &p_Data);
+if (nprops > 0) pid= (pid_t) * (int *) p_Data;
+
+XFree(p_Data);
+return(pid);
+}
+
 
 
 char *X11WindowGetCmdLine(char *RetStr, Window win)
@@ -70,16 +137,11 @@ Atom PType;
 int len, i;
 pid_t pid=0;
 
-
 RetStr=CopyStr(RetStr, "");
 
 //first try getting window pid (_NET_WM_PID property) and looking command line up from that using the /proc filesystem
-XGetWindowProperty(display, win, WM_PID, 0, 1024, 0, AnyPropertyType, &PType, &PropFormat, &nprops, &trash, &p_Data);
-if (nprops > 0) 
-{
-	pid= (pid_t) * (int *) p_Data;
-	RetStr=GetProcessCmdLine(RetStr,  pid);
-}
+pid=X11WindowGetPID(win);
+if (pid > 0) RetStr=GetProcessCmdLine(RetStr,  pid);
 
 
 //if, for any reason, we failed to get a command-line from the window pid, start desperately trying other window properties
@@ -105,6 +167,13 @@ if (! StrValid(RetStr))
 return(RetStr);
 }
 
+
+void X11CloseWindow(Window win, int Action)
+{
+if (Action==ACT_WINKILL) XKillClient(display, win);
+else XDestroyWindow(display, win);
+XSync(display, True);
+}
 
 
 KeySym X11TranslateKey(int key)
@@ -245,6 +314,11 @@ break;
 case TKEY_SCROLL_LOCK:
 ks=XK_Scroll_Lock;
 break;
+
+case TKEY_CAPS_LOCK:
+ks=XK_Caps_Lock;
+break;
+
 
 case TKEY_WWW:
 ks=XF86XK_WWW;
@@ -396,6 +470,7 @@ switch (ks)
 	case XK_Pause: return(TKEY_PAUSE); break;
 	case XK_Print: return(TKEY_PRINT); break;
 	case XK_Scroll_Lock: return(TKEY_SCROLL_LOCK); break;
+	case XK_Caps_Lock: return(TKEY_CAPS_LOCK); break;
 
 	case XF86XK_WWW: return(TKEY_WWW); break;
 	case XF86XK_Mail: return(TKEY_MAIL); break;
@@ -434,6 +509,7 @@ return(0);
 void X11SendKey(Window win, int key, int mods, int state)
 {
 XEvent ev;
+
 ev.xkey.state=0;
 
 	if (state) ev.type=KeyPress;
@@ -449,23 +525,155 @@ ev.xkey.state=0;
 
 	ev.xkey.keycode=XKeysymToKeycode(display, key);
 	XSendEvent(display, win, False, KeyPressMask | KeyReleaseMask, &ev);
+	XSync(display, True);
+}
+
+
+
+void X11SendMouseButton(Window win, unsigned int button, unsigned int state)
+{
+XEvent ev;
+Window root_return, win_return;
+int rx, ry, wx, wy, mask;
+
+	if (state) ev.type=ButtonPress;
+	else ev.type=ButtonRelease;
+
+	XQueryPointer(display, RootWin, &root_return, &win_return, &rx, &ry, &wx, &wy, &mask);
+
+	ev.xbutton.display=display;
+	ev.xbutton.root=RootWin;
+	ev.xbutton.window=win;
+	ev.xbutton.subwindow=None;
+	ev.xbutton.x=wx;
+	ev.xbutton.y=wy;
+	ev.xbutton.x_root=rx;
+	ev.xbutton.y_root=ry;
+	ev.xbutton.time=CurrentTime;
+	ev.xbutton.same_screen=True;
+	ev.xbutton.send_event=True;
+
+	ev.xbutton.button=button - MOUSE_BTN_1 +1;
+	if (! state) 
+	{
+		switch (button)
+		{
+		case MOUSE_BTN_1: ev.xbutton.state = Button1MotionMask; break;
+		case MOUSE_BTN_2: ev.xbutton.state = Button2MotionMask; break;
+		case MOUSE_BTN_3: ev.xbutton.state = Button3MotionMask; break;
+		case MOUSE_BTN_4: ev.xbutton.state = Button4MotionMask; break;
+		case MOUSE_BTN_5: ev.xbutton.state = Button5MotionMask; break;
+		}
+		XUngrabPointer(display, CurrentTime);
+	}
+	else 
+	{
+	ev.xbutton.state=0;
+	XGrabPointer(display, RootWin, True, ButtonMotionMask | PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+	}
+
+
+	if (win == RootWin) 
+	{
+		ev.xbutton.x=rx;
+		ev.xbutton.y=ry;
+	}
+	else XTranslateCoordinates(display, RootWin, win, rx, ry, &(ev.xbutton.x), &(ev.xbutton.y), &(ev.xbutton.subwindow));
+
+	XSendEvent(display, win, True, ButtonPressMask | ButtonReleaseMask, &ev);
+	XAllowEvents(display, AsyncPointer, CurrentTime);
+	XSync(display, True);
+}
+
+
+void X11WindowSetState(Window Win, int Action)
+{
+    Atom StateAtom, StateValue=None;
+		int AddOrDel=TRUE, CurrState;
+    XEvent event;
+
+		CurrState=X11WindowGetState(Win);
+
+		switch (Action)
+		{
+			case ACT_WINSHADE:
+    	if (CurrState & WINSTATE_SHADED) AddOrDel=FALSE;
+			StateValue=XInternAtom(display, "_NET_WM_STATE_SHADED", False);
+			break;
+
+			case ACT_WINSTICK:
+    	if (CurrState & WINSTATE_STICKY) AddOrDel=FALSE;
+			StateValue=XInternAtom(display, "_NET_WM_STATE_STICKY", False);
+			break;
+
+			case ACT_WINHIDE:
+    	StateValue=XInternAtom(display, "_NET_WM_STATE_HIDDEN", False);
+			break;
+
+			case ACT_WINFULLSCR:
+    	if (CurrState & WINSTATE_FULLSCREEN) AddOrDel=FALSE;
+    	StateValue=XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
+			break;
+
+			case ACT_WINMAX_X:
+    	if (CurrState & WINSTATE_MAX_X) AddOrDel=FALSE;
+    	StateValue=XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+			break;
+
+			case ACT_WINMAX_Y:
+    	if (CurrState & WINSTATE_MAX_Y) AddOrDel=FALSE;
+    	StateValue=XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+			break;
+
+			case ACT_WINRAISED:
+    	if (CurrState & WINSTATE_RAISED) AddOrDel=FALSE;
+    	StateValue=XInternAtom(display, "_NET_WM_STATE_ABOVE", False);
+			break;
+
+			case ACT_WINLOWERED:
+    	if (CurrState & WINSTATE_LOWERED) AddOrDel=FALSE;
+    	StateValue=XInternAtom(display, "_NET_WM_STATE_BELOW", False);
+			break;
+		}
+
+
+		if (StateValue != None)
+		{
+    StateAtom=XInternAtom(display, "_NET_WM_STATE", False);
+
+    memset( &event, 0, sizeof (XEvent) );
+    event.xclient.type = ClientMessage;
+    event.xclient.serial = 0;
+    event.xclient.window = Win;
+    event.xclient.message_type = StateAtom;
+    event.xclient.send_event=True;
+    event.xclient.format = 32;
+    event.xclient.data.l[0] = AddOrDel;
+    event.xclient.data.l[1] = StateValue;
+    event.xclient.data.l[2] = 0;
+    event.xclient.data.l[3] = 0;
+    event.xclient.data.l[4] = 0;
+
+
+    XSendEvent(display, RootWin, False, SubstructureRedirectMask | SubstructureNotifyMask, &event);
+		XSync(display, True);
+		}
 }
 
 
 
 void X11SendEvent(Window win, unsigned int key, unsigned int mods, int state)
 {
-XEvent ev;
 
 if (key==0) return;
 
 if (Flags & FLAG_DEBUG) printf("sendkey: %d target=%x root=%x\n", key, win, RootWin);
 
-ev.xkey.state=0;
 if (mods & KEYMOD_SHIFT) X11SendKey(win, XK_Shift_L, 0, state);
 if (mods & KEYMOD_CTRL) X11SendKey(win, XK_Control_L, 0, state);
 if (mods & KEYMOD_ALT) X11SendKey(win, XK_Meta_L, 0, state);
 
+XSync(display, True);
 switch (key)
 {
 case MOUSE_BTN_1:
@@ -480,21 +688,7 @@ case MOUSE_BTN_9:
 case MOUSE_BTN_10:
 case MOUSE_BTN_11:
 case MOUSE_BTN_12:
-	if (state) ev.type=ButtonPress;
-	else ev.type=ButtonRelease;
-
-	ev.xbutton.display=display;
-	ev.xbutton.window=win;
-	ev.xbutton.subwindow=win;
-	ev.xbutton.root=RootWin;
-
-	ev.xbutton.x=100;
-	ev.xbutton.y=100;
-	ev.xbutton.x_root=100;
-	ev.xbutton.y_root=100;
-
-	ev.xbutton.button=key-MOUSE_BTN_1 +1;
-	XSendEvent(display, win, False, ButtonPressMask | ButtonReleaseMask, &ev);
+	X11SendMouseButton(win, key, state);
 break;
 
 default:
@@ -502,9 +696,7 @@ default:
 break;
 }
 
-
-
-XSync(display, True);
+//XSync(display, True);
 }
 
 
@@ -539,7 +731,7 @@ if (mods & KEYMOD_ALT)   modmask |= Mod1Mask;
 
 sym=XKeysymToKeycode(display, X11TranslateKey(key));
 
-if (sym >0) result=XGrabKey(display, sym, mods, RootWin, False, GrabModeAsync, GrabModeAsync);
+if (sym >0) result=XGrabKey(display, sym, modmask, RootWin, False, GrabModeAsync, GrabModeAsync);
 if (Flags & FLAG_DEBUG) printf("Setup Keygrabs sym=%d key=%d mods=%d RootWin=%d result=%d\n", sym, key, mods, RootWin, result);
 }
 
@@ -612,6 +804,14 @@ while (XPending(display))
 			Input->value=FALSE; 
 			Input->input=MOUSE_BTN_1 + ev.xbutton.button -1;
 		break;
+
+		case MotionNotify:
+			ev.xmotion.window=X11GetPointerWin();
+			ev.xbutton.subwindow=None;
+			ev.xmotion.state |= Button1Mask;
+printf("MN: %x %x %x\n", ev.xmotion.window, ev.xmotion.subwindow, RootWin);
+			XSendEvent(display, ev.xmotion.window, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask, &ev);
+		break;
 	}
 }
 
@@ -630,7 +830,6 @@ int X11Init()
 	XSetErrorHandler(X11ErrorHandler);
 	
 	RootWin=DefaultRootWindow(display);
-  WM_PID=XInternAtom(display, "_NET_WM_PID", False);
 
 	return(XConnectionNumber(display));
 }

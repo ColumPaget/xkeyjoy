@@ -390,9 +390,20 @@ STREAM *STREAMSelect(ListNode *Streams, struct timeval *tv)
         S=(STREAM *) Curr->Item;
         if (S && (! (S->State & SS_EMBARGOED)))
         {
-            //Pump any data in the stream
-            STREAMFlush(S);
-            if (S->InEnd > S->InStart) return(S);
+						//server type streams don't have buffers
+						if ( (S->Type != STREAM_TYPE_UNIX_SERVER) && (S->Type != STREAM_TYPE_TCP_SERVER) ) 
+						{
+            		//Pump any data in the stream 
+								STREAMFlush(S);
+
+								//if there's stuff in buffer, then we don't need to select the file descriptor
+            		if (S->InEnd > S->InStart) 
+								{
+									SelectSetDestroy(Set);
+									return(S);
+								}
+						}
+
 						SelectAddFD(Set, SELECT_READ, S->in_fd);
         }
 
@@ -492,10 +503,13 @@ int STREAMInternalFinalWriteBytes(STREAM *S, const char *Data, int DataLen)
     {
         if (S->State & SS_SSL)
         {
+
 #ifdef HAVE_LIBSSL
+		//if this is an SSL stream, it should have an associated SSL object. If it doesn't then the stream
+		//either failed to open, or has been closed with STREAMShutdown
 		vptr=STREAMGetItem(S,"LIBUSEFUL-SSL:OBJ");
 		if (vptr) result=SSL_write((SSL *) vptr, Data + count, DataLen - count);
-		else result=0;
+		else result=STREAM_CLOSED;
 		if (result < 0) result=STREAM_CLOSED;
 #endif
         }
@@ -505,9 +519,7 @@ int STREAMInternalFinalWriteBytes(STREAM *S, const char *Data, int DataLen)
             {
                 FD_ZERO(&selectset);
                 FD_SET(S->out_fd, &selectset);
-                result=(S->Timeout % 100);
-                tv.tv_usec=result * 100000;
-                tv.tv_sec=S->Timeout / 100;
+								MillisecsToTV(S->Timeout * 10, &tv);
                 result=select(S->out_fd+1,NULL,&selectset,NULL,&tv);
                 if (result < 1) 
 								{
@@ -955,6 +967,30 @@ int STREAMParseConfig(const char *Config)
 }
 
 
+
+//this function handles the situation where we have a 'chain' of URLs (network proxies)
+//it extracts the 'real' or 'master' URL that specifies the actual connection, which
+//will be the LAST one in the list
+static const char *STREAMExtractMasterURL(const char *URL)
+{
+char *ptr;
+
+	if (strncmp(URL, "cmd:",4) ==0) return(URL); //'cmd:' urls do not go through proxies!
+	if (strncmp(URL, "file:",5) ==0) return(URL); //'file:' urls do not go through proxies!
+	if (strncmp(URL, "mmap:",5) ==0) return(URL); //'mmap:' urls do not go through proxies!
+	if (strncmp(URL, "stdin:",6) ==0) return(URL); //'stdin:' urls do not go through proxies!
+	if (strncmp(URL, "stdout:",7) ==0) return(URL); //'stdout:' urls do not go through proxies!
+	if (strncmp(URL, "stdio:",6) ==0) return(URL); //'stdio:' urls do not go through proxies!
+
+   ptr=strrchr(URL, '|');
+   if (ptr) ptr++;
+   else ptr=URL;
+
+	return(ptr);
+}
+
+
+
 //URL can be a file path or a number of different network/file URL types
 STREAM *STREAMOpen(const char *URL, const char *Config)
 {
@@ -963,13 +999,9 @@ STREAM *STREAMOpen(const char *URL, const char *Config)
     const char *ptr;
     int Port=0, Flags=0;
 
-    //if we've got a chain of connections, then get the LAST one to analyze. 
-		//The others are all proxies we go via
-    ptr=strrchr(URL, '|');
-    if (ptr) ptr++;
-    else ptr=URL;
 
-    Proto=CopyStr(Proto,"file");
+    Proto=CopyStr(Proto,"");
+		ptr=STREAMExtractMasterURL(URL);
     ParseURL(ptr, &Proto, &Host, &Token, &User, &Pass, &Path, &Args);
     if (StrValid(Token)) Port=strtoul(Token,NULL,10);
 
@@ -981,28 +1013,52 @@ STREAM *STREAMOpen(const char *URL, const char *Config)
     {
     case 'c':
         if (strcasecmp(Proto,"cmd")==0) S=STREAMSpawnCommand(URL+4, Config);
+        else S=STREAMFileOpen(URL, Flags);
         break;
+
+		case 'f':
+        if (strcasecmp(Proto,"file")==0) 
+				{
+				ptr=URL+5;
+
+				//file protocol can have 3 '/' after file, like this file:///myfile.txt. So we strip off two of these
+				//thus anything with 3 of them is a full path from /, anything with less than that is a relative path
+				//from the current directory
+				if (*ptr=='/') ptr++;
+				if (*ptr=='/') ptr++;
+        S=STREAMFileOpen(ptr, Flags);
+				}
+        else S=STREAMFileOpen(URL, Flags);
+				break;
 
     case 'h':
         if (
-            (strcmp(Proto,"http")==0) ||
-            (strcmp(Proto,"https")==0)
-        ) S=HTTPWithConfig(URL, Config);
+            (strcasecmp(Proto,"http")==0) ||
+            (strcasecmp(Proto,"https")==0)
+        ) 
+				{
+				S=HTTPWithConfig(URL, Config);
         //the 'write only' and 'read only' flags normally result in one or another
         //buffer not being allocated (as it's not expected to be needed). However
         //with HTTP 'write' means 'POST', and we still need both read and write
         //buffers to read from and to the server, so we must unset these flags
         Flags &= ~(SF_WRONLY | SF_RDONLY);
+				}
+        else S=STREAMFileOpen(URL, Flags);
         break;
 
     case 'm':
-        if (strcmp(Proto,"mmap")==0) S=STREAMFileOpen(URL+5, Flags | SF_MMAP);
+        if (strcasecmp(Proto,"mmap")==0) S=STREAMFileOpen(URL+5, Flags | SF_MMAP);
+        else S=STREAMFileOpen(URL, Flags);
         break;
 
     case 't':
     case 's':
     case 'u':
-			if (strcasecmp(Proto,"ssh")==0) S=SSHOpen(Host, Port, User, Pass, Path, Flags);
+      if ( (strcmp(URL,"-")==0) || (strcasecmp(URL,"stdio:")==0) ) S=STREAMFromDualFD(0,1);
+			else if (strcasecmp(URL,"stdin:")==0) S=STREAMFromFD(0);
+			else if (strcasecmp(URL,"stdout:")==0) S=STREAMFromFD(1);
+			else if (strcasecmp(Proto,"ssh")==0) S=SSHOpen(Host, Port, User, Pass, Path, Flags);
       else if (strcasecmp(Proto,"tty")==0)
       {
             S=STREAMFromFD(TTYConfigOpen(URL+4, Config));
@@ -1012,7 +1068,7 @@ STREAM *STREAMOpen(const char *URL, const char *Config)
                 S->Type=STREAM_TYPE_TTY;
             }
       }
-      else
+      else 
       {
             S=STREAMCreate();
             S->Path=CopyStr(S->Path,URL);
@@ -1025,9 +1081,7 @@ STREAM *STREAMOpen(const char *URL, const char *Config)
       break;
 
     default:
-        if ( (strcmp(URL,"-")==0) || (strcasecmp(URL,"stdio:")==0) ) S=STREAMFromDualFD(0,1);
-				else if (strcasecmp(URL,"stdin:")==0) S=STREAMFromFD(0);
-				else if (strcasecmp(URL,"stdout:")==0) S=STREAMFromFD(1);
+        if (strcmp(URL,"-")==0) S=STREAMFromDualFD(0,1);
         else S=STREAMFileOpen(URL, Flags);
         break;
     }
@@ -1143,9 +1197,9 @@ void STREAMCloseFile(STREAM *S)
 
 
 
-void STREAMClose(STREAM *S)
+void STREAMShutdown(STREAM *S)
 {
-    ListNode *Curr;
+    ListNode *Curr, *Next;
     STREAM *tmpS;
     int val;
 
@@ -1191,25 +1245,43 @@ void STREAMClose(STREAM *S)
     Curr=ListGetNext(S->Items);
     while (Curr)
     {
-        if (strcmp(Curr->Tag,"LU:AssociatedStream")==0)
+			  Next=ListGetNext(Curr);	
+        if (strcmp(Curr->Tag, "LU:AssociatedStream")==0)
         {
-            tmpS=(STREAM *) Curr->Item;
-            STREAMClose(tmpS);
+          tmpS=(STREAM *) Curr->Item;
+          STREAMClose(tmpS);
+					ListDeleteNode(Curr);
         }
-        else if (strcmp(Curr->Tag, "HTTP:InfoStruct")==0) HTTPInfoDestroy(Curr->Item);
+        else if (strcmp(Curr->Tag, "HTTP:InfoStruct")==0) 
+				{
+					HTTPInfoDestroy(Curr->Item);
+					ListDeleteNode(Curr);
+				}
 
-        Curr=ListGetNext(Curr);
+
+        Curr=Next;
     }
 
-		//now we actually close the file descriptors for this stream
+		//now we actually close the file descriptors for this stream. 
 		if ((S->out_fd != S->in_fd) && (S->out_fd > -1)) close(S->out_fd);
-    if (S->in_fd > -1) close(S->in_fd);
+		//out_fd is invalid now whether we closed it or not, so set it to -1
+		//so that if STREAMClose gets called later (say, in garbage-collected environments)
+		//we don't wind up closing another connection that has inhertied the file number
+		S->out_fd=-1;
 
-
-    STREAMDestroy(S);
+    if (S->in_fd > -1) 
+		{
+			close(S->in_fd);
+			S->in_fd=-1;
+		}
 }
 
 
+void STREAMClose(STREAM *S)
+{
+	STREAMShutdown(S);
+  STREAMDestroy(S);
+}
 
 
 int STREAMReadCharsToBuffer(STREAM *S)
@@ -1285,9 +1357,7 @@ int STREAMReadCharsToBuffer(STREAM *S)
     {
         FD_ZERO(&selectset);
         FD_SET(S->in_fd, &selectset);
-        val=(S->Timeout % 100);
-        tv.tv_usec=val * 10000;
-        tv.tv_sec=S->Timeout / 100;
+				MillisecsToTV(S->Timeout * 10, &tv);
         val=select(S->in_fd+1,&selectset,NULL,NULL,&tv);
 
         switch (val)
@@ -2256,16 +2326,11 @@ unsigned long STREAMSendFile(STREAM *In, STREAM *Out, unsigned long Max, int Fla
             result=0;
 
 
-            //nothing to write!
-            if (towrite < 1)
-            {
-                //nothing in either buffer! Stream empty. Is it closed?
-                if ((Out->OutEnd==0) && (result==STREAM_CLOSED)) break;
-            }
-
             result=STREAMWriteBytes(Out,In->InputBuff+In->InStart,towrite);
-
-						if (result > 0)
+	
+						//write failed with 'STREAM_CLOSED'
+						if (result==STREAM_CLOSED) break;
+						else if (result > 0)
 						{
             In->InStart+=result;
             bytes_transferred+=result;

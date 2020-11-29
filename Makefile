@@ -3,7 +3,7 @@ CFLAGS=-g -O2 -DHAVE_LINUX_INPUT_H -I/usr/X11R7/include
 LDFLAGS= -L/usr/X11R7/lib
 LIBS=-lX11 
 LIBUSEFUL=libUseful/libUseful.a
-VERSION=1.2
+VERSION=2.0
 prefix=/usr/local
 
 all: $(OBJ) $(LIBUSEFUL)

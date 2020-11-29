@@ -9,7 +9,7 @@ STREAM *SSHConnect(const char *Host, int Port, const char *User, const char *Pas
     char *Tempstr=NULL, *KeyFile=NULL, *Token=NULL, *RemoteCmd=NULL, *TTYConfigs=NULL;
     const char *ptr;
     STREAM *S;
-    int val, i;
+    int val, i, IsTunnel=FALSE;
 
 
 
@@ -37,16 +37,24 @@ STREAM *SSHConnect(const char *Host, int Port, const char *User, const char *Pas
     while (ptr)
     {
         if (strcmp(Token,"none")==0) Tempstr=CatStr(Tempstr, "-N ");
-        else if (strncmp(Token, "tunnel:",7)==0) Tempstr=MCatStr(Tempstr,"-N -L ", Token+7, NULL);
         else if (strncmp(Token, "stdin:",6)==0) Tempstr=MCatStr(Tempstr,"-W ", Token+6, NULL);
         else if (strncmp(Token, "jump:",5)==0) Tempstr=MCatStr(Tempstr,"-J ", Token+5, NULL);
+        else if (strncmp(Token, "tunnel:",7)==0) 
+				{
+					Tempstr=MCatStr(Tempstr,"-oExitOnForwardFailure=yes -N -L ", Token+7, NULL);
+					IsTunnel=TRUE;
+				}
+        else if (strncmp(Token, "proxy:",6)==0) 
+				{
+					Tempstr=MCatStr(Tempstr,"-oExitOnForwardFailure=yes -N -D ", Token+6, NULL);
+					IsTunnel=TRUE;
+				}
         else RemoteCmd=MCatStr(RemoteCmd, Token, " ", NULL);
 
         ptr=GetToken(ptr, "\\S", &Token, 0);
     }
 
     if (StrValid(RemoteCmd)) Tempstr=MCatStr(Tempstr, " \"", RemoteCmd, "\" ", NULL);
-    Tempstr=CatStr(Tempstr, " 2> /dev/null");
 
 
 		//Setup configuration of the connection to the 'ssh' command
@@ -54,13 +62,15 @@ STREAM *SSHConnect(const char *Host, int Port, const char *User, const char *Pas
 		//periodically something causes me to remove the 'pty' settings
 		//but then password auth is broken.
 		//this comment is so I'm aware of that the next time I think of removing 'pty'
-		TTYConfigs=CopyStr(TTYConfigs, "pty,crlf,+stderr,ignsig");
+		TTYConfigs=CopyStr(TTYConfigs, "pty crlf stderr2null ignsig");
+
 		//if we are writing to a file on the remote server then we need some way
 		//to tell it 'end of file'. We can't just close the connection, as we 
 		//may not have sent all the data. For this one situation we use canonical
 		//pty settings, so we can use the 'cntrl-d' control character
-		if (Flags & SSH_CANON_PTY) TTYConfigs=CatStr(TTYConfigs, ",canon");
+		if (Flags & SSH_CANON_PTY) TTYConfigs=CatStr(TTYConfigs, " canon");
 
+		TTYConfigs=CatStr(TTYConfigs, " noshell");
 
     S=STREAMSpawnCommand(Tempstr, TTYConfigs);
     if (S)
@@ -79,6 +89,13 @@ STREAM *SSHConnect(const char *Host, int Port, const char *User, const char *Pas
             STREAMExpectDialog(S, Dialog, 0);
             ListDestroy(Dialog,ExpectDialogDestroy);
         }
+
+				//if we've started up an ssh to do tunneling via '-L <port>:<ip>:<port>' then we need to
+				//mark it's pid to be killed when this connection closes, otherwise we'll leak ssh procs.
+				if (IsTunnel) 
+				{
+					STREAMSetValue(S, "HelperPID", STREAMGetValue(S, "PeerPID"));
+				}
     }
 
     DestroyString(Tempstr);
@@ -152,6 +169,7 @@ char *Tempstr=NULL;
 
 if (S->Flags & SF_WRONLY)
 {
+//send cntrl-d
 STREAMWriteBytes(S, &endchar, 1);
 STREAMFlush(S);
 Tempstr=STREAMReadDocument(Tempstr, S);

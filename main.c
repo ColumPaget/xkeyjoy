@@ -18,6 +18,11 @@ void SignalHandler(int sig)
 
 int IfEventTrigger(TInputMap *ev, TInputMap *IMap)
 {
+//sendkey actions trigger on both up and down
+if (IMap->action==ACT_SENDKEY) return(TRUE);
+
+//other actions, like 'exec' only trigger on release or
+//on specified values
 switch (ev->intype)
 {
 	case EV_SW: 
@@ -39,6 +44,7 @@ int ProcessEvent(TProfile *Profile, Window win, TInputMap *ev)
 TInputMap *IMap;
 int i, active=FALSE, matched=FALSE;
 Window target;
+pid_t pid;
 
 if (! Profile) return(FALSE);
 for (i=0; i < Profile->NoOfEvents; i++)
@@ -89,18 +95,36 @@ for (i=0; i < Profile->NoOfEvents; i++)
 				//fall through
 				
 			default:
-					if (IMap->output==0)
-					{
 						if (IfEventTrigger(ev, IMap))
 						{
-							if (strncmp(IMap->target, "exec:", 5)==0) 
+							switch(IMap->action)
 							{
+								case ACT_EXEC:
 								printf("RUN COMMAND: %s\n", IMap->target + 5);
 								Spawn(IMap->target +5, "");
+								break;
+
+								case ACT_WINCLOSE:
+								case ACT_WINKILL:
+								X11CloseWindow(target, IMap->action);
+								break;
+
+								case ACT_WINSHADE:
+								case ACT_WINHIDE:
+								case ACT_WINSTICK:
+								case ACT_WINFULLSCR:
+								case ACT_WINMAX_X:
+								case ACT_WINMAX_Y:
+								case ACT_WINRAISED:
+								case ACT_WINLOWERED:
+								X11WindowSetState(target, IMap->action);
+								break;
+
+								default:
+									X11SendEvent(target, IMap->output, IMap->outmods, ev->value);
+								break;
 							}
 						}
-					}
-					else X11SendEvent(target, IMap->output, IMap->outmods, ev->value);
 			break;
 		}
 	}

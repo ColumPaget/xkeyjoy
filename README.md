@@ -179,6 +179,35 @@ the `exec:` action launches the specified command-line.  To launch command-lines
 ```
 
 
+WINDOW ACTIONS
+==============
+
+
+The following actions can be booked against a keypress that effect window management:
+
+```
+closewin     close a window
+killwin      kill the app that owns a window
+fullscreen   make window fullscreen (return to normal if fullscreened) 
+wide         make window fullwidth (return to normal if fullwidth)
+tall         make window fullheight (return to normal if fullheight)
+hidewin      hide/minimize win
+minwin       hide/minimize win
+stickwin     make window 'sticky' (unstick if stuck)
+above        make window 'stay above' 
+below        make window 'stay below' 
+shadewin     'shade' a window
+```
+
+so, for example
+
+```
+all xkb:alt-h=hidewin
+```
+
+will cause a window to hide/minimize when alt-h is pressed
+
+
 
 KEYNAMES
 ========
@@ -200,3 +229,34 @@ SUPPORTED GAMEPADS
 ==================
 
 So far PS4, Logitech and 8bitdo gamepads have been seen to work with xkeyjoy. Some other gamepads do not send the appropriate keycodes, and so do not work at current.
+
+
+
+APPLICATIONS THAT DON'T SUPPORT 'XSendEvent' faked keypresses
+=============================================================
+
+xkeyjoy uses 'XSendEvent' to send faked key and mouse-button presses. Some applications refuse to honor these. Notably xterm can be pursuaded to do so using
+
+
+```
+xterm -xrm 'allowSendEvents: true'
+```
+
+or by setting up entries for xterm in your .Xresources file
+
+```
+XTerm*allowSendEvents: true
+```
+
+
+FAKING SHIFT-INSERT ON 60% or TENKEYLESS KEYBOARDS
+==================================================
+
+One use I've found for xkeyjoy is to provide a 'shift-insert' paste function on keyboards that lack an insert key. This keypress pastes the primary selection into a window (I use other software that combined primary selections and clipboards into one overall clipboard). I usually map shift-delete for this task. This can, however, be a bit of a battle. First xterm has to be modified as described above to receive XSendEvent style keypresses. Next, rather than send shift-insert on a shift-delete keypress, it's much better to send the middle mouse-button, which also causes 'paste' in most apps. Some apps (notably 'qterminal') handle the 'paste' keypress as a configurable keygrab, and send-events don't seem to trigger those. Thus the best approach is:
+
+
+```
+all xkb:shift-del=xbtn:2
+```
+
+This seems to work with most applications, except windows apps running under wine.

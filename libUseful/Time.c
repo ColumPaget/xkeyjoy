@@ -115,6 +115,7 @@ time_t DateStrToSecs(const char *DateFormat, const char *Str, const char *TimeZo
     return(Secs);
 }
 
+
 long TimezoneOffset(const char *TimeZone)
 {
     long Secs=0;
@@ -141,6 +142,15 @@ long TimezoneOffset(const char *TimeZone)
 
     return(Secs);
 }
+
+
+
+void MillisecsToTV(int millisecs, struct timeval *tv)
+{
+    tv->tv_sec=millisecs / 1000;
+		tv->tv_usec=(millisecs - (tv->tv_sec * 1000)) * 1000;
+}
+
 
 
 /* A general 'Set Timer' function, Useful for timing out */

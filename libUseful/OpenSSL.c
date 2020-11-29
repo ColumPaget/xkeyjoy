@@ -458,7 +458,7 @@ int OpenSSLSetOptions(STREAM *S, SSL *ssl, int Options)
 
 int DoSSLClientNegotiation(STREAM *S, int Flags)
 {
-    int result=FALSE, Options=0;
+    int result=FALSE, Options=0, i, val;
     char *Token=NULL;
 #ifdef HAVE_LIBSSL
     const SSL_METHOD *Method;
@@ -495,15 +495,29 @@ int DoSSLClientNegotiation(STREAM *S, int Flags)
             ptr=GetToken(ptr,":",&Token,0);
             SSL_set_tlsext_host_name(ssl, Token);
 #endif
+						/*
+						if (S->Timeout > 0) 
+						{
+								//convert centisecs to seconds
+								val=S->Timeout / 100;
+								if (val==0) val++;
+								SSL_CTX_set_timeout (ctx, val);
+						}
+						*/
 
             result=SSL_connect(ssl);
-            while (result==-1)
+            for (i=0; i < 3; i ++)
             {
+								//if we succeeded don't keep looping
+								if (result > -1) break;
                 result=SSL_get_error(ssl, result);
                 if ( (result != SSL_ERROR_WANT_READ) && (result != SSL_ERROR_WANT_WRITE) && (result != SSL_ERROR_WANT_CONNECT)) break;
-                usleep(300);
+                usleep(2000);
                 result=SSL_connect(ssl);
             }
+
+						result=SSL_do_handshake(ssl);
+
             S->State |= SS_SSL;
 
             OpenSSLQueryCipher(S);
@@ -661,7 +675,7 @@ int DoSSLServerNegotiation(STREAM *S, int Flags)
 
 
 
-int STREAMIsPeerAuth(STREAM *S)
+int OpenSSLIsPeerAuth(STREAM *S)
 {
 #ifdef HAVE_LIBSSL
     void *ptr;
@@ -680,13 +694,54 @@ int STREAMIsPeerAuth(STREAM *S)
 
 void OpenSSLClose(STREAM *S)
 {
-void *ptr;
+ListNode *Node;
 
 #ifdef HAVE_LIBSSL
-ptr=STREAMGetItem(S,"LIBUSEFUL-SSL:OBJ");
-if (ptr) SSL_free((SSL *) ptr);
 
-ptr=STREAMGetItem(S,"LIBUSEFUL-SSL:CTX");
-if (ptr) SSL_CTX_free((SSL_CTX *) ptr);
+Node=ListFindNamedItem(S->Items,"LIBUSEFUL-SSL:OBJ");
+if (Node) 
+{
+	SSL_free((SSL *) Node->Item);
+	ListDeleteNode(Node);
+}
+
+Node=ListFindNamedItem(S->Items,"LIBUSEFUL-SSL:CTX");
+if (Node) 
+{
+	SSL_CTX_free((SSL_CTX *) Node->Item);
+	ListDeleteNode(Node);
+}
 #endif
+}
+
+
+
+int OpenSSLAutoDetect(STREAM *S)
+{
+int result, val, RetVal=FALSE;
+char *Tempstr=NULL;
+
+val=S->Timeout;
+STREAMSetTimeout(S, 1);
+
+result=STREAMCountWaitingBytes(S);
+if (result > 1)
+{
+   Tempstr=SetStrLen(Tempstr,255);
+   result=recv(S->in_fd, Tempstr, 2, MSG_PEEK);
+   if (result >1)
+   {
+     if (memcmp(Tempstr, "\x16\x03",2)==0)
+     {
+     	//it's SSL/TLS
+			DoSSLServerNegotiation(S, 0);
+			RetVal=TRUE;
+     }
+   }
+}
+STREAMSetTimeout(S, val);
+
+Destroy(Tempstr);
+
+return(RetVal);
 }

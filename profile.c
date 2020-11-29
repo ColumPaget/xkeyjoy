@@ -223,6 +223,7 @@ if (mods != NULL) *mods=0; //make sure this doesn't inherit values from elsewher
 	}
 		
 	kv=TerminalTranslateKeyStrWithMod(Value, mods);
+printf("TTKS: [%s] [%d] [%d]\n", Value, kv, *mods);
 	return(kv);
 }
 
@@ -237,7 +238,11 @@ int i;
 
 	for (i=0; i < Grabs->NoOfEvents; i++)
 	{
-		if ((Grabs->Events[i].intype==IMap->intype) && (Grabs->Events[i].input==IMap->input) ) return;
+		if (
+		(Grabs->Events[i].intype==IMap->intype) && 
+		(Grabs->Events[i].input==IMap->input) &&
+		(Grabs->Events[i].inmods==IMap->inmods) 
+		) return;
 	}
 
 	Grabs->Events=(TInputMap *) realloc(Grabs->Events, (Grabs->NoOfEvents+1) * sizeof(TInputMap));
@@ -356,7 +361,63 @@ const char *ptr;
 		}
 		else if (strncmp(Value, "exec:", 5)==0) 
 		{
+			IMap->action=ACT_EXEC;
 			IMap->target=UnQuoteStr(IMap->target, Value);
+			ptr=NULL;
+		}
+		else if (strcmp(Value, "killwin")==0) 
+		{
+			IMap->action=ACT_WINKILL;
+			ptr=NULL;
+		}
+		else if (strcmp(Value, "closewin")==0) 
+		{
+			IMap->action=ACT_WINCLOSE;
+			ptr=NULL;
+		}
+		else if (strcmp(Value, "shadewin")==0) 
+		{
+			IMap->action=ACT_WINSHADE;
+			ptr=NULL;
+		}
+		else if (strcmp(Value, "stickwin")==0) 
+		{
+			IMap->action=ACT_WINSTICK;
+			ptr=NULL;
+		}
+		else if (strcmp(Value, "minwin")==0) 
+		{
+			IMap->action=ACT_WINHIDE;
+			ptr=NULL;
+		}
+		else if (strcmp(Value, "hidewin")==0) 
+		{
+			IMap->action=ACT_WINHIDE;
+			ptr=NULL;
+		}
+ 		else if (strcmp(Value, "fullscr")==0) 
+		{
+			IMap->action=ACT_WINFULLSCR;
+			ptr=NULL;
+		}
+ 		else if (strcmp(Value, "below")==0) 
+		{
+			IMap->action=ACT_WINLOWERED;
+			ptr=NULL;
+		}
+ 		else if (strcmp(Value, "above")==0) 
+		{
+			IMap->action=ACT_WINRAISED;
+			ptr=NULL;
+		}
+ 		else if (strcmp(Value, "wide")==0) 
+		{
+			IMap->action=ACT_WINMAX_X;
+			ptr=NULL;
+		}
+ 		else if (strcmp(Value, "tall")==0) 
+		{
+			IMap->action=ACT_WINMAX_Y;
 			ptr=NULL;
 		}
 		else ptr=Value;
@@ -505,6 +566,7 @@ Grabs->NoOfEvents=0;
 
 AddToAllProfiles=CopyStr(AddToAllProfiles, "");
 }
+
 
 
 TProfile *ProfilesReload(const char *Paths)
