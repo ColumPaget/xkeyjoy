@@ -14,6 +14,7 @@ void X11WindowSetState(Window Win, int State);
 void X11SendEvent(Window win, unsigned int key, unsigned int mods, int state);
 int X11GetEvent(TInputMap *Input);
 void X11CloseWindow(Window win, int Action);
+void X11SwitchVT(Window target, int VT);
 
 int X11Init();
 void X11SetupGrabs(TProfile *Profile);
