@@ -405,7 +405,7 @@ else
 		{
 			if (waitpid(-1, NULL, WNOHANG)==-1) break;
 		}
-
+		
 		if (EvdevLoadDevices(Devices)) ActivateInputs(Inputs, Devices, X11Input);
 	}
 }

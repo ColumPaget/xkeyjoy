@@ -55,9 +55,9 @@ AC_CHECK_LIB(Useful,GetToken)
 LUSEFUL="system"
 else
 LUSEFUL="bundled"
-LIBUSEFUL="libUseful/libUseful.a"
+LIBUSEFUL="libUseful-4/libUseful.a"
 AC_SUBST(LIBUSEFUL)
-AC_CONFIG_SUBDIRS([libUseful])
+AC_CONFIG_SUBDIRS([libUseful-4])
 fi
 
 

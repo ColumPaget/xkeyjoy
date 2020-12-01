@@ -2,7 +2,7 @@ OBJ=X11.o evdev.o profile.o proc.o common.o
 CFLAGS=-g -O2 -DHAVE_LINUX_INPUT_H -I/usr/X11R7/include
 LDFLAGS= -L/usr/X11R7/lib
 LIBS=-lX11 
-LIBUSEFUL=libUseful/libUseful.a
+LIBUSEFUL=libUseful-4/libUseful.a
 VERSION=2.0
 prefix=/usr/local
 
@@ -10,7 +10,7 @@ all: $(OBJ) $(LIBUSEFUL)
 	gcc -oxkeyjoy -DVERSION=\"$(VERSION)\" $(CFLAGS) $(LDFLAGS) $(OBJ) main.c $(LIBS) $(LIBUSEFUL)
 
 $(LIBUSEFUL):
-	$(MAKE) -C libUseful
+	$(MAKE) -C libUseful-4
 
 
 X11.o: X11.c X11.h common.h

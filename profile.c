@@ -454,6 +454,7 @@ unsigned int in, out;
 
 if (! Profiles) Profiles=ListCreate();
 
+printf("PP: %s\n", RawConfig);
 ptr=GetToken(RawConfig, "\\S", &Value, GETTOKEN_QUOTES);
 if (strcmp(Value, "all")==0) AddToAllProfiles=MCatStr(AddToAllProfiles, " ", ptr, NULL);
 else
@@ -536,10 +537,7 @@ if (S)
 		StripTrailingWhitespace(Tempstr);
 		StripLeadingWhitespace(Tempstr);
 
-		//anything after a '#' is a comment, so truncate lines at that character
-		StrTruncChar(Tempstr, '#');
-
-		if (StrValid(Tempstr)) ProfileParse(Tempstr);
+		if (StrValid(Tempstr) && (*Tempstr != '#')) ProfileParse(Tempstr);
 		Tempstr=STREAMReadLine(Tempstr, S);
 	}
 	STREAMClose(S);

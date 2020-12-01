@@ -187,6 +187,66 @@ case ' ':
 ks=XK_space;
 break;
 
+case '|':
+ks=XK_bar;
+break;
+
+case '/':
+ks=XK_slash;
+break;
+
+case '\\':
+ks=XK_backslash;
+break;
+
+case '#':
+ks=XK_numbersign;
+break;
+
+case '(':
+ks=XK_parenleft;
+break;
+
+case ')':
+ks=XK_parenright;
+break;
+
+case '[':
+ks=XK_bracketleft;
+break;
+
+case ']':
+ks=XK_bracketright;
+break;
+
+case '{':
+ks=XK_braceleft;
+break;
+
+case '}':
+ks=XK_braceright;
+break;
+
+
+case '~':
+ks=XK_asciitilde; 
+break;
+
+case '^':
+ks=XK_asciicircum; 
+break;
+
+
+case ESCAPE:
+ks=XK_Escape;
+break;
+
+#ifdef TKEY_TAB
+case TKEY_TAB:
+ks=XK_Tab;
+break;
+#endif
+
 case TKEY_LEFT:
 ks=XK_Left;
 break;
@@ -311,14 +371,17 @@ case TKEY_PRINT:
 ks=XK_Print;
 break;
 
+#ifdef TKEY_SCROLL_LOCK
 case TKEY_SCROLL_LOCK:
 ks=XK_Scroll_Lock;
 break;
+#endif
 
+#ifdef TKEY_CAPS_LOCK
 case TKEY_CAPS_LOCK:
 ks=XK_Caps_Lock;
 break;
-
+#endif
 
 case TKEY_WWW:
 ks=XF86XK_WWW;
@@ -439,6 +502,12 @@ ks=XKeycodeToKeysym(display, keycode, 0);
 switch (ks)
 {
 	case XK_Escape: return(ESCAPE);	break;
+#ifdef TKEY_TAB
+	case XK_Tab: return(TKEY_TAB);	break;
+#endif
+	case XK_Return: return(TKEY_ENTER); break;
+	case XK_space: return(' '); break;
+
 	case XK_F1: return(TKEY_F1); break;
 	case XK_F2: return(TKEY_F2); break;
 	case XK_F3: return(TKEY_F3); break;
@@ -451,7 +520,6 @@ switch (ks)
 	case XK_F10: return(TKEY_F10); break;
 	case XK_F11: return(TKEY_F11); break;
 	case XK_F12: return(TKEY_F12); break;
-	case XK_space: return(' '); break;
 	case XK_Left: return(TKEY_LEFT); break;
 	case XK_Right: return(TKEY_RIGHT); break;
 	case XK_Up: return(TKEY_UP); break;
@@ -466,11 +534,16 @@ switch (ks)
 	case XK_Menu: return(TKEY_MENU); break;
 	case XK_Shift_L: return(TKEY_LSHIFT); break;
 	case XK_Shift_R: return(TKEY_RSHIFT); break;
-	case XK_Return: return(TKEY_ENTER); break;
 	case XK_Pause: return(TKEY_PAUSE); break;
 	case XK_Print: return(TKEY_PRINT); break;
+
+#ifdef TKEY_SCROLL_LOCK
 	case XK_Scroll_Lock: return(TKEY_SCROLL_LOCK); break;
+#endif
+
+#ifdef TKEY_SCROLL_LOCK
 	case XK_Caps_Lock: return(TKEY_CAPS_LOCK); break;
+#endif
 
 	case XF86XK_WWW: return(TKEY_WWW); break;
 	case XF86XK_Mail: return(TKEY_MAIL); break;
@@ -495,6 +568,20 @@ switch (ks)
 	case XF86XK_AudioLowerVolume: return(TKEY_VOL_DOWN); break;
 	case XF86XK_AudioRaiseVolume: return(TKEY_VOL_UP); break;
 
+	case XK_bar: return('|'); break;
+	case XK_slash: return('/'); break;
+	case XK_backslash: return('\\'); break;
+	case XK_numbersign: return('#'); break;
+	case XK_parenleft: return('('); break;
+	case XK_parenright: return(')'); break;
+	case XK_bracketleft: return('['); break;
+	case XK_bracketright: return(']'); break;
+	case XK_braceleft: return('{'); break;
+	case XK_braceright: return('}'); break;
+	case XK_asciitilde: return('~'); break;
+	case XK_asciicircum: return('^'); break;
+
+
 
 	default:
 		ptr=XKeysymToString(ks);
@@ -509,6 +596,7 @@ return(0);
 void X11SendKey(Window win, int key, int mods, int state)
 {
 XEvent ev;
+int upper, lower;
 
 ev.xkey.state=0;
 
@@ -519,6 +607,9 @@ ev.xkey.state=0;
 	ev.xkey.subwindow=win;
 	ev.xkey.root=RootWin;
 
+	XConvertCase(key, &upper, &lower);
+	if (key != lower) mods |= KEYMOD_SHIFT;
+	
 	if (mods & KEYMOD_SHIFT) ev.xkey.state |= ShiftMask;
 	if (mods & KEYMOD_CTRL) ev.xkey.state |= ControlMask;
 	if (mods & KEYMOD_ALT) ev.xkey.state |= Mod1Mask;
@@ -667,7 +758,7 @@ void X11SendEvent(Window win, unsigned int key, unsigned int mods, int state)
 
 if (key==0) return;
 
-if (Flags & FLAG_DEBUG) printf("sendkey: %d target=%x root=%x\n", key, win, RootWin);
+if (Flags & FLAG_DEBUG) printf("sendkey: %c %d target=%x root=%x\n", key, key, win, RootWin);
 
 if (mods & KEYMOD_SHIFT) X11SendKey(win, XK_Shift_L, 0, state);
 if (mods & KEYMOD_CTRL) X11SendKey(win, XK_Control_L, 0, state);

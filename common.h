@@ -1,7 +1,7 @@
 #ifndef XKEYJOY_COMMON_H
 #define XKEYJOY_COMMON_H
 
-#include "libUseful/libUseful.h"
+#include "libUseful-4/libUseful.h"
 #include <glob.h>
 
 #define FLAG_HELP  1

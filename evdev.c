@@ -203,20 +203,22 @@ int EvdevLoadDevices(ListNode *Devices)
 char *Tempstr=NULL, *Path=NULL, *Name=NULL;
 glob_t Glob;
 TEvDev *Ev;
+STREAM *S;
 int i, fd, New=FALSE;
 
 
 glob("/dev/input/event*", 0, 0, &Glob);
 for (i=0; i < Glob.gl_pathc; i++)
 {
-  Ev=(TEvDev *) calloc(1, sizeof(TEvDev));
 
 	Name=CopyStr(Name, GetBasename(Glob.gl_pathv[i]));
 	if (! ListFindNamedItem(Devices, Name))
 	{
-  Ev->S=STREAMOpen(Glob.gl_pathv[i], "r");
-	if (Ev->S)
+  	S=STREAMOpen(Glob.gl_pathv[i], "r");
+	if (S)
 	{
+  	Ev=(TEvDev *) calloc(1, sizeof(TEvDev));
+	Ev->S=S;
 	if (Flags & FLAG_DEBUG) printf("ADD: %s\n", Ev->S->Path);
 	ioctl(Ev->S->in_fd, EVIOCGBIT(0, EV_MAX), &Ev->caps);
 	Tempstr=SetStrLen(Tempstr, 1024);
@@ -239,3 +241,12 @@ Destroy(Name);
 return(New);
 }
 
+void EvdevDeviceDestroy(void *p_Dev)
+{
+TEvDev *Dev;
+
+Dev=(TEvDev *) p_Dev;
+Destroy(Dev->name);
+STREAMClose(Dev->S);
+Destroy(Dev);
+}
