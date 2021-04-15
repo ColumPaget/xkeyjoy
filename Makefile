@@ -1,32 +1,32 @@
 OBJ=X11.o evdev.o profile.o proc.o common.o
 CFLAGS=-g -O2 -DHAVE_LINUX_INPUT_H -I/usr/X11R7/include
 LDFLAGS= -L/usr/X11R7/lib
-LIBS=-lX11 
-LIBUSEFUL=libUseful-4/libUseful.a
-VERSION=2.1
+LIBS=-lUseful -lz -lcrypto -lssl -lX11 
+LIBUSEFUL=
+VERSION=2.0
 prefix=/usr/local
 
 all: $(OBJ) $(LIBUSEFUL)
-	gcc -oxkeyjoy -DVERSION=\"$(VERSION)\" $(CFLAGS) $(LDFLAGS) $(OBJ) main.c $(LIBS) $(LIBUSEFUL)
+	$(CC) -oxkeyjoy -DVERSION=\"$(VERSION)\" $(CFLAGS) $(LDFLAGS) $(OBJ) main.c $(LIBS) $(LIBUSEFUL)
 
 $(LIBUSEFUL):
 	$(MAKE) -C libUseful-4
 
 
 X11.o: X11.c X11.h common.h
-	gcc -c X11.c $(CFLAGS)
+	$(CC) -c X11.c $(CFLAGS)
 
 profile.o: profile.c profile.h
-	gcc -c profile.c $(CFLAGS)
+	$(CC) -c profile.c $(CFLAGS)
 
 proc.o: proc.c proc.h
-	gcc -c proc.c $(CFLAGS)
+	$(CC) -c proc.c $(CFLAGS)
 
 evdev.o: evdev.c evdev.h
-	gcc -c evdev.c $(CFLAGS)
+	$(CC) -c evdev.c $(CFLAGS)
 
 common.o: common.c common.h
-	gcc -c common.c $(CFLAGS)
+	$(CC) -c common.c $(CFLAGS)
 
 install:
 	-mkdir -p $(DESTDIR)$(prefix)/bin

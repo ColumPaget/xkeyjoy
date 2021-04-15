@@ -49,13 +49,13 @@ Window X11GetPointerWin()
 
 Window X11FindWin(const char *Name)
 {
-    if (! StrValid(Name)) return(NULL);
+    if (! StrValid(Name)) return(None);
 
     if (strcmp(Name, "root")==0) return (RootWin);
     if (strcmp(Name, "rootwin")==0) return (RootWin);
     if (strncmp(Name, "0x", 2)==0) return (strtol(Name+2, NULL, 16));
 
-    return(NULL);
+    return(None);
 }
 
 void X11SetupEvents(Window CurrWin)
@@ -227,7 +227,6 @@ KeySym X11TranslateKey(int key)
         ks=XK_braceright;
         break;
 
-
     case '~':
         ks=XK_asciitilde;
         break;
@@ -236,6 +235,81 @@ KeySym X11TranslateKey(int key)
         ks=XK_asciicircum;
         break;
 
+    case '`':
+        ks=XK_quoteleft;
+        break;
+
+    case '\'':
+        ks=XK_quoteright;
+        break;
+
+    case ':':
+        ks=XK_colon;
+        break;
+
+    case ';':
+        ks=XK_semicolon;
+        break;
+
+    case ',':
+        ks=XK_comma;
+        break;
+
+    case '.':
+        ks=XK_period;
+        break;
+
+    case '?':
+        ks=XK_question;
+        break;
+
+    case '!':
+        ks=XK_exclam;
+        break;
+
+    case '&':
+        ks=XK_ampersand;
+        break;
+
+    case '%':
+        ks=XK_percent;
+        break;
+
+    case '@':
+        ks=XK_at;
+        break;
+
+    case '$':
+        ks=XK_dollar;
+        break;
+
+    case '_':
+        ks=XK_underscore;
+        break;
+
+    case '<':
+        ks=XK_less;
+        break;
+
+    case '>':
+        ks=XK_greater;
+        break;
+
+    case '=':
+        ks=XK_equal;
+        break;
+
+    case '+':
+        ks=XK_plus;
+        break;
+
+    case '-':
+        ks=XK_minus;
+        break;
+
+    case '*':
+        ks=XK_asterisk;
+        break;
 
     case ESCAPE:
         ks=XK_Escape;
@@ -738,7 +812,7 @@ void X11SendKey(Window win, int key, int mods, int state)
     ev.xkey.subwindow=win;
     ev.xkey.root=RootWin;
 
-    XConvertCase(key, &upper, &lower);
+    XConvertCase(key, (KeySym *) &upper, (KeySym *) &lower);
     if (key != lower) mods |= KEYMOD_SHIFT;
 
     if (mods & KEYMOD_SHIFT) ev.xkey.state |= ShiftMask;
