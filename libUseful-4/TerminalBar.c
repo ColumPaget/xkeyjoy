@@ -1,6 +1,10 @@
 #include "TerminalBar.h"
 #include "Terminal.h"
 
+
+//this function exists elsewhere, but we don't really want to make it available to users
+void TerminalInternalConfig(const char *Config, int *ForeColor, int *BackColor, int *Flags);
+
 void TerminalBarUpdate(TERMBAR *TB, const char *Text)
 {
     int rows, cols, x=0, y=0, TextLen;
@@ -97,6 +101,91 @@ char *TerminalBarReadText(char *RetStr, TERMBAR *TB, int Flags, const char *Prom
 }
 
 
+void TerminalBarMenuUpdate(TERMBAR *TB, ListNode *Items)
+{
+    ListNode *Curr;
+    char *Tempstr=NULL;
+
+    Curr=ListGetNext(Items);
+    while (Curr)
+    {
+        if (Items->Side==Curr)
+        {
+            Tempstr=MCatStr(Tempstr, TB->MenuCursorLeft, Curr->Tag, TB->MenuCursorRight,NULL);
+        }
+        else Tempstr=MCatStr(Tempstr, TB->MenuPadLeft,Curr->Tag,TB->MenuPadRight,NULL);
+
+        Curr=ListGetNext(Curr);
+    }
+
+    TerminalBarUpdate(TB, Tempstr);
+
+    DestroyString(Tempstr);
+}
+
+
+
+char *TerminalBarMenu(char *RetStr, TERMBAR *TB, const char *ItemStr)
+{
+    ListNode *Items, *Curr;
+    const char *ptr;
+    char *Token=NULL;
+    int inchar, Done=FALSE;
+
+    Items=ListCreate();
+    ptr=GetToken(ItemStr, ",", &Token, GETTOKEN_QUOTES);
+    while (ptr)
+    {
+        ListAddNamedItem(Items, Token, NULL);
+        ptr=GetToken(ptr, ",", &Token, GETTOKEN_QUOTES);
+    }
+
+    Curr=ListGetNext(Items);
+    Items->Side=Curr;
+
+    TerminalBarMenuUpdate(TB, Items);
+    inchar=TerminalReadChar(TB->Term);
+    while (! Done)
+    {
+        switch (inchar)
+        {
+        case EOF:
+            Done=TRUE;
+            break;
+
+        case '<':
+        case TKEY_LEFT:
+            Curr=ListGetPrev(Items->Side);
+            if (Curr) Items->Side=Curr;
+            break;
+
+        case '>':
+        case TKEY_RIGHT:
+            Curr=ListGetNext(Items->Side);
+            if (Curr) Items->Side=Curr;
+            break;
+
+        case '\r':
+        case '\n':
+            RetStr=CopyStr(RetStr, Items->Side->Tag);
+            Done=TRUE;
+            break;
+        }
+
+        if (Done) break;
+        TerminalBarMenuUpdate(TB, Items);
+        inchar=TerminalReadChar(TB->Term);
+    }
+
+
+    DestroyString(Token);
+    ListDestroy(Items, NULL);
+
+    return(RetStr);
+}
+
+
+
 
 
 void TerminalBarsInit(STREAM *S)
@@ -133,15 +222,15 @@ void TerminalBarsInit(STREAM *S)
             STREAMSetValue(S, "Terminal:bottom",Tempstr);
         }
 
-				//set scrolling region to be top+2 because x and y for terminal are indexed from one, so
-				//this is treally 'top+1'
+        //set scrolling region to be top+2 because x and y for terminal are indexed from one, so
+        //this is treally 'top+1'
         TerminalCommand(TERM_SCROLL_REGION, top+2, rows-(top+bottom), S);
 
-				//move the cursor into the scrolling region
+        //move the cursor into the scrolling region
         TerminalCommand(TERM_CURSOR_MOVE, 0, top+2, S);
     }
 
-Destroy(Tempstr);
+    Destroy(Tempstr);
 }
 
 
@@ -151,7 +240,7 @@ void TerminalBarSetConfig(TERMBAR *TB, const char *Config)
     char *Name=NULL, *Value=NULL;
     const char *ptr;
 
-		//first check for options only used in terminal bars
+    //first check for options only used in terminal bars
     ptr=GetNameValuePair(Config, " ","=",&Name,&Value);
     while (ptr)
     {
@@ -165,21 +254,21 @@ void TerminalBarSetConfig(TERMBAR *TB, const char *Config)
             if (strcasecmp(Name,"MenuCursorRight")==0) TB->MenuCursorRight=CopyStr(TB->MenuCursorRight, Value);
             break;
 
-				case 'x':
-				case 'X':
-						if (strcasecmp(Name, "x")==0) TB->x=atoi(Value);
-				break;
+        case 'x':
+        case 'X':
+            if (strcasecmp(Name, "x")==0) TB->x=atoi(Value);
+            break;
 
-				case 'y':
-				case 'Y':
-						if (strcasecmp(Name, "y")==0) TB->y=atoi(Value);
-				break;
+        case 'y':
+        case 'Y':
+            if (strcasecmp(Name, "y")==0) TB->y=atoi(Value);
+            break;
         }
         ptr=GetNameValuePair(ptr, " ","=",&Name,&Value);
     }
 
-		//then check for default options, backcolor and forecolor reversed because terminal bars
-		//are inverse text
+    //then check for default options, backcolor and forecolor reversed because terminal bars
+    //are inverse text
     TerminalInternalConfig(Config, &(TB->BackColor), &(TB->ForeColor), &(TB->Flags));
 
     DestroyString(Name);

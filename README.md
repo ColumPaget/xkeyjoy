@@ -217,13 +217,15 @@ Most of the keynames that xkeyjoy recognizes either to send or as keygrab inputs
 Function keys: F1 F2 F3 F3 F5 F6 F7 F8 F9 F10 F11 F12 F13 F13
 Action keys: esc, enter, open, close, pause, copy, cut, paste, clear, search, sleep, standby, lshift, rshift, lctrl, rctrl, win, menu
 Arrow keys: left, right, up, down
-Keypad keys: home, end, insert, delete pageup, pagedown
+Keypad keys: home, end, insert, delete, pageup, pagedown
 System keys: scrlck, pause, print
 Internet keys: www, shop, media, faves, back, forward, homepage, mail, messenger,  eject, calculator, lightbulb, wlan, webcam
 Media keys: play, mute, volup, voldown
+Modifiers: shift, ctrl, alt, ralt
 
 'esc' is the standard escape key, 'win' is the windows key, 'volup' and 'voldown' are the increase and decrease volume keys on media keyboards. 'play' is the 'play or pause' key on media keyboards. 'scrlck' is the scroll-lock key, 'print' is the print-screen key and 'pause' is the pause/break key.
 
+The modifiers are ekys that can be combined with another key in the style 'alt-z' or 'shift-delete'. 'ralt' is 'right-alt', which maps to 'mod5' under X11.
 
 SUPPORTED GAMEPADS
 ==================

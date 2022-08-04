@@ -453,7 +453,6 @@ TProfile *ProfileParse(const char *RawConfig)
 
     if (! Profiles) Profiles=ListCreate();
 
-    printf("PP: %s\n", RawConfig);
     ptr=GetToken(RawConfig, "\\S", &Value, GETTOKEN_QUOTES);
     if (strcmp(Value, "all")==0) AddToAllProfiles=MCatStr(AddToAllProfiles, " ", ptr, NULL);
     else

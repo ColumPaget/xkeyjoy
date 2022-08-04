@@ -108,21 +108,24 @@ OBTAINED VIA ParserOpenItem. Only do it to the root node obtained with ParserPar
 extern "C" {
 #endif
 
-typedef enum {PARSER_JSON, PARSER_XML, PARSER_RSS, PARSER_YAML, PARSER_CONFIG, PARSER_INI, PARSER_URL, PARSER_FORK} EParsers;
+typedef enum {PARSER_JSON, PARSER_XML, PARSER_RSS, PARSER_YAML, PARSER_CONFIG, PARSER_INI, PARSER_URL, PARSER_CMON} EParsers;
 
 //this typedef is simply to create a typename that makes code clearer, you can just use 'ListNode' if you prefer
 typedef struct lnode PARSER;
 
-#define ITEM_ROOT   0
-#define ITEM_VALUE  1
-#define ITEM_ENTITY 2
-#define ITEM_ARRAY  3
+#define ITEM_ROOT    0
+#define ITEM_STRING  1
+#define ITEM_ENTITY  2
+#define ITEM_ARRAY   3
+#define ITEM_INTEGER 4
 
 ListNode *ParserParseDocument(const char *DocType, const char *Doc);
 void ParserItemsDestroy(ListNode *Items);
 ListNode *ParserFindItem(ListNode *Items, const char *Name);
 ListNode *ParserOpenItem(ListNode *Items, const char *Name);
+int ParserItemIsValue(ListNode *Node);
 const char *ParserGetValue(ListNode *Items, const char *Name);
+char *ParserExport(char *RetStr, const char *Format, PARSER *P);
 
 #ifdef __cplusplus
 }

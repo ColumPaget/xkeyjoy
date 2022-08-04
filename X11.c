@@ -818,6 +818,7 @@ void X11SendKey(Window win, int key, int mods, int state)
     if (mods & KEYMOD_SHIFT) ev.xkey.state |= ShiftMask;
     if (mods & KEYMOD_CTRL) ev.xkey.state |= ControlMask;
     if (mods & KEYMOD_ALT) ev.xkey.state |= Mod1Mask;
+    if (mods & KEYMOD_ALT2) ev.xkey.state |= Mod5Mask;
 
     ev.xkey.keycode=XKeysymToKeycode(display, key);
     XSendEvent(display, win, False, KeyPressMask | KeyReleaseMask, &ev);
@@ -983,6 +984,7 @@ void X11SendEvent(Window win, unsigned int key, unsigned int mods, int state)
     if (mods & KEYMOD_SHIFT) X11SendKey(win, XK_Shift_L, 0, state);
     if (mods & KEYMOD_CTRL) X11SendKey(win, XK_Control_L, 0, state);
     if (mods & KEYMOD_ALT) X11SendKey(win, XK_Meta_L, 0, state);
+    if (mods & KEYMOD_ALT2) X11SendKey(win, XK_Meta_R, 0, state);
 
     XSync(display, True);
     switch (key)
@@ -1039,6 +1041,7 @@ int X11AddKeyGrab(int key, int mods)
     if (mods & KEYMOD_SHIFT) modmask |= ShiftMask;
     if (mods & KEYMOD_CTRL)  modmask |= ControlMask;
     if (mods & KEYMOD_ALT)   modmask |= Mod1Mask;
+    if (mods & KEYMOD_ALT2)   modmask |= Mod5Mask;
 
     sym=XKeysymToKeycode(display, X11TranslateKey(key));
 
@@ -1091,6 +1094,7 @@ int X11GetEvent(TInputMap *Input)
             if (ev.xkey.state & ShiftMask) Input->inmods |= KEYMOD_SHIFT;
             if (ev.xkey.state & ControlMask) Input->inmods |= KEYMOD_CTRL;
             if (ev.xkey.state & Mod1Mask) Input->inmods |= KEYMOD_ALT;
+            if (ev.xkey.state & Mod5Mask) Input->inmods |= KEYMOD_ALT2;
             break;
 
         case KeyRelease:
@@ -1102,6 +1106,7 @@ int X11GetEvent(TInputMap *Input)
             if (ev.xkey.state & ShiftMask) Input->inmods |= KEYMOD_SHIFT;
             if (ev.xkey.state & ControlMask) Input->inmods |= KEYMOD_CTRL;
             if (ev.xkey.state & Mod1Mask) Input->inmods |= KEYMOD_ALT;
+            if (ev.xkey.state & Mod5Mask) Input->inmods |= KEYMOD_ALT2;
             break;
 
         case ButtonPress:
