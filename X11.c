@@ -31,6 +31,7 @@ Window X11GetFocusedWin()
     int trash;
 
     XGetInputFocus(display, &focused, &trash);
+		X11SetupEvents(focused);
 
     return(focused);
 }
@@ -66,7 +67,7 @@ void X11SetupEvents(Window CurrWin)
     WinAttr.event_mask = EVENT_MASK;
     XChangeWindowAttributes(display, CurrWin, CWEventMask, &WinAttr);
 
-    //XSelectInput(display, CurrWin, KeyPressMask | ButtonPressMask | ButtonReleaseMask );
+    XSelectInput(display, CurrWin, EVENT_MASK );
 
     XFlush(display);
 }
@@ -812,7 +813,7 @@ void X11SendKey(Window win, int key, int mods, int state)
     ev.xkey.subwindow=win;
     ev.xkey.root=RootWin;
 
-    XConvertCase(key, (KeySym *) &upper, (KeySym *) &lower);
+    XConvertCase(key, (KeySym *) &lower, (KeySym *) &upper);
     if (key != lower) mods |= KEYMOD_SHIFT;
 
     if (mods & KEYMOD_SHIFT) ev.xkey.state |= ShiftMask;
@@ -1125,7 +1126,6 @@ int X11GetEvent(TInputMap *Input)
             ev.xmotion.window=X11GetPointerWin();
             ev.xbutton.subwindow=None;
             ev.xmotion.state |= Button1Mask;
-            printf("MN: %x %x %x\n", ev.xmotion.window, ev.xmotion.subwindow, RootWin);
             XSendEvent(display, ev.xmotion.window, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask, &ev);
             break;
         }

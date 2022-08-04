@@ -439,7 +439,7 @@ TProfile *ProfileGet(const char *Apps)
     Profile->Events=(TInputMap *) calloc(255, sizeof(TInputMap));
     Profile->Apps=CopyStr(Profile->Apps, Apps);
     ListAddNamedItem(Profiles, Profile->Apps, Profile);
-
+		printf("ProfileAdd: %s\n", Profile->Apps);
     return(Profile);
 }
 
@@ -501,7 +501,7 @@ int ProfileMatchesApp(const char *Profile, const char *AppCmdLine)
     {
         Tempstr=CopyStr(Tempstr, App);
         if (StrValid(p_Args)) Tempstr=MCatStr(Tempstr, " ", p_Args, NULL);
-        if (fnmatch(Tempstr, AppCmdLine, 0)==0)
+        if (fnmatch(Tempstr, AppCmdLine, FNM_CASEFOLD)==0)
         {
             result=TRUE;
             break;

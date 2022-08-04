@@ -194,7 +194,11 @@ TProfile *HandleWindowChange(Window win)
 //Thus grabs are only registered when we ReloadProfiles
     Tempstr=X11WindowGetCmdLine(Tempstr, win);
     Profile=ProfileForApp(Tempstr);
-    if (Flags & FLAG_DEBUG) printf("Winchange: %s %x\n", Tempstr, win);
+    if (Flags & FLAG_DEBUG) 
+		{
+				printf("Winchange: %s %x\n", Tempstr, win);
+				printf("Profile for %s: %s\n", Tempstr, Profile->Apps);
+		}
 
     Destroy(Tempstr);
 
@@ -340,13 +344,13 @@ void main(int argc, char *argv[])
     struct timeval tv;
 
     Devices=ListCreate();
-    ConfigPath=CopyStr(ConfigPath, "/etc/xkeyjoy:~/.xkeyjoy");
+    ConfigPath=CopyStr(ConfigPath, "/etc/xkeyjoy:~/.xkeyjoy:~/.config/xkeyjoy");
     signal(SIGHUP, SignalHandler);
 
     Flags=ParseCommandLine(argc, argv);
     if ( (Flags & FLAG_NODEMON) && (isatty(1)) ) Flags |= FLAG_DEBUG;
 
-    EvdevLoadDevices(Devices);
+    EvdevLoadDevices(Devices, TRUE);
 
     if (Flags & FLAG_HELP) DisplayHelp();
     else if (Flags & FLAG_VERSION) printf("version: %s\n", VERSION);
@@ -365,8 +369,13 @@ void main(int argc, char *argv[])
         X11Input=STREAMFromFD(result);
         ActivateInputs(Inputs, Devices, X11Input);
 
+printf("INPUTS: %d\n", ListSize(Inputs));
         if (! (Flags & FLAG_NODEMON)) demonize();
 
+        win=X11GetFocusedWin();
+            tv.tv_sec=1;
+            tv.tv_usec=0;
+ 
         while (1)
         {
             if (ProfilesNeedReload)
@@ -377,21 +386,30 @@ void main(int argc, char *argv[])
                 prev_win=win;
             }
 
+           S=STREAMSelect(Inputs, &tv);
+
+						if ((tv.tv_sec==0) && (tv.tv_usec==0))
+						{
             tv.tv_sec=1;
             tv.tv_usec=0;
-            S=STREAMSelect(Inputs, &tv);
+ 
+						//Leave/enter/motion x11 events don't always seem to work
+            win=X11GetFocusedWin();
+            if (win != prev_win) Profile=HandleWindowChange(win);
+            prev_win=win;
+            if (EvdevLoadDevices(Devices, FALSE)) ActivateInputs(Inputs, Devices, X11Input);
+						}
+
             if (S)
             {
-                win=X11GetFocusedWin();
-                if (win != prev_win) Profile=HandleWindowChange(win);
-                prev_win=win;
-
                 if (S==X11Input) HandleX11Keygrabs(win, Profile);
                 else
                 {
                     result=STREAMReadBytes(S, (char *) &ev, sizeof(struct input_event));
                     if ((result > 0) && (ev.type != EV_SYN))
                     {
+												if (Flags & FLAG_DEBUG) printf("EVDEV: %d '%s'\n", ev.code, EvdevLookupName(&ev));
+
                         if (Profile) ProcessDevice(S, win, &ev, Profile);
                     }
                     else if (result < 1)
@@ -409,7 +427,6 @@ void main(int argc, char *argv[])
                 if (waitpid(-1, NULL, WNOHANG)==-1) break;
             }
 
-            if (EvdevLoadDevices(Devices)) ActivateInputs(Inputs, Devices, X11Input);
         }
     }
 

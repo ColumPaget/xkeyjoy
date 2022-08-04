@@ -2,6 +2,53 @@
 #include "profile.h"
 #include <linux/input.h>
 
+char *EvdevGetName(char *RetStr, const char *Path)
+{
+ const char *p_Name;
+ char *Tempstr=NULL;
+ STREAM *S;
+
+ RetStr=CopyStr(RetStr, "????");
+ p_Name=GetBasename(Path);
+ Tempstr=MCopyStr(Tempstr, "/sys/class/input/", p_Name, "/device/name", NULL);
+ S=STREAMOpen(Tempstr, "r");
+ if (S)
+ {
+ RetStr=STREAMReadLine(RetStr, S);
+ StripTrailingWhitespace(RetStr);
+ STREAMClose(S);
+ }
+
+Destroy(Tempstr);
+return(RetStr);
+}
+
+
+char *EvdevGetNameFromSTREAM(char *RetStr, STREAM *S)
+{
+char *Tempstr=NULL;
+
+                Tempstr=SetStrLen(Tempstr, 1024);
+                ioctl(S->in_fd, EVIOCGNAME(1024), Tempstr);
+                RetStr=CopyStr(RetStr, Tempstr);
+
+Destroy(Tempstr);
+
+return(RetStr);
+}
+
+
+char *EvdevFormatDevDetails(char *RetStr, STREAM *S)
+{
+ struct input_id evdev_id;
+
+ioctl(S->in_fd, EVIOCGID, &evdev_id);
+RetStr=FormatStr(RetStr, "vendor=%04d product=%04d version=%04d", evdev_id.vendor, evdev_id.product, evdev_id.version);
+
+return(RetStr);
+}
+
+
 void EvdevPrintDevice(TEvDev *Dev, const char *EventID)
 {
     int axisindex;
@@ -63,26 +110,36 @@ void EvdevListDevices(ListNode *Devices)
 
 const char *EvdevLookupName(struct input_event *ev)
 {
-    if (ev->type==EV_SW)
+    switch (ev->type)
     {
+		case EV_SW:
         switch (ev->code)
         {
+				case SW_DOCK:
+						return("sw:dock");
+						break;
+				case SW_HEADPHONE_INSERT:
+						return("sw:headphone");
+						break;
+				case SW_LINEIN_INSERT:
+						return("sw:linein");
+						break;
+				case SW_LINEOUT_INSERT:
+						return("sw:lineout");
+						break;
         case SW_LID:
             return("sw:lid");
             break;
         case SW_RFKILL_ALL:
             return("sw:rfkill");
             break;
-        case SW_DOCK:
-            return("sw:dock");
-            break;
         case SW_TABLET_MODE:
             return("sw:tablet");
             break;
         }
-    }
-    else
-    {
+		break;
+
+		case EV_KEY:
         switch (ev->code)
         {
         case BTN_A:
@@ -131,6 +188,11 @@ const char *EvdevLookupName(struct input_event *ev)
             return("btn:right");
             break;
         }
+			break;
+
+			case EV_ABS:
+				return("joystick");
+			break;
     }
 
 
@@ -143,7 +205,6 @@ void EvdevMonitorDevice(ListNode *Devices, const char *Name)
 {
     ListNode *Node;
     struct input_event ev;
-    struct input_id evdev_id;
     char *Tempstr=NULL, *Buttons=NULL;
     STREAM *StdOut;
     TEvDev *Dev;
@@ -158,8 +219,7 @@ void EvdevMonitorDevice(ListNode *Devices, const char *Name)
         StdOut=STREAMFromFD(1);
         TerminalClear(StdOut);
         TerminalCursorMove(StdOut, 0, 0);
-        ioctl(Dev->S->in_fd, EVIOCGID, &evdev_id);
-        Tempstr=FormatStr(Tempstr, "%s: %s vendor=%d product=%d version=%d~>", Name, Dev->name, evdev_id.vendor, evdev_id.product, evdev_id.version);
+				Tempstr=MCopyStr(Tempstr, Dev->S->Path, "  ", Dev->name, "~>", NULL);
         TerminalPutStr(Tempstr, StdOut);
 
         while (1)
@@ -177,7 +237,7 @@ void EvdevMonitorDevice(ListNode *Devices, const char *Name)
 
                 case EV_SW:
                 case EV_KEY:
-                    Buttons=FormatStr(Buttons, "press:  type=%u code=%x value=%x", ev.type, ev.code, ev.value);
+                    Buttons=FormatStr(Buttons, "press:  type=%u code=%x value=%x ", ev.type, ev.code, ev.value);
                     Buttons=MCatStr(Buttons, EvdevLookupName(&ev), " ", NULL);
                     break;
                 }
@@ -238,13 +298,13 @@ void EvdevLoadAxes(TEvDev *Ev)
 
 
 
-int EvdevLoadDevices(ListNode *Devices)
+int EvdevLoadDevices(ListNode *Devices, int Initial)
 {
-    char *Tempstr=NULL, *Path=NULL, *Name=NULL;
+    char *Tempstr=NULL, *Name=NULL;
     glob_t Glob;
     TEvDev *Ev;
     STREAM *S;
-    int i, fd, New=FALSE;
+    int i, New=FALSE;
 
 
     glob("/dev/input/event*", 0, 0, &Glob);
@@ -259,15 +319,23 @@ int EvdevLoadDevices(ListNode *Devices)
             {
                 Ev=(TEvDev *) calloc(1, sizeof(TEvDev));
                 Ev->S=S;
-                if (Flags & FLAG_DEBUG) printf("ADD: %s\n", Ev->S->Path);
+								Ev->name=EvdevGetNameFromSTREAM(Ev->name, Ev->S);
+                if (Initial && (Flags & FLAG_DEBUG) )
+								{
+										Tempstr=EvdevFormatDevDetails(Tempstr, Ev->S);
+										printf("ADD: %s %s %s\n", Ev->S->Path, Tempstr, Ev->name);
+								}
+
                 ioctl(Ev->S->in_fd, EVIOCGBIT(0, EV_MAX), &Ev->caps);
-                Tempstr=SetStrLen(Tempstr, 1024);
-                ioctl(Ev->S->in_fd, EVIOCGNAME(1024), Tempstr);
-                Ev->name=CopyStr(Ev->name, Tempstr);
                 EvdevLoadAxes(Ev);
                 ListAddNamedItem(Devices, Name, Ev);
                 New=TRUE;
             }
+						else 
+						{
+							Tempstr=EvdevGetName(Tempstr, Glob.gl_pathv[i]);
+							if (Initial && (Flags & FLAG_DEBUG)) printf("FAILED TO OPEN: %s %s\n", Glob.gl_pathv[i], Tempstr);
+						}
         }
     }
 
@@ -275,7 +343,6 @@ int EvdevLoadDevices(ListNode *Devices)
     globfree(&Glob);
 
     Destroy(Tempstr);
-    Destroy(Path);
     Destroy(Name);
 
     return(New);
