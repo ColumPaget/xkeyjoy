@@ -8,7 +8,7 @@
 
 #include "proc.h"
 
-#define EVENT_MASK (EnterWindowMask | LeaveWindowMask | KeyPressMask | ButtonPressMask | ButtonReleaseMask)
+#define EVENT_MASK (EnterWindowMask | LeaveWindowMask | ButtonPressMask | ButtonReleaseMask)
 
 #define WINSTATE_FULLSCREEN 1
 #define WINSTATE_SHADED 2
@@ -822,6 +822,7 @@ void X11SendKey(Window win, int key, int mods, int state)
     if (mods & KEYMOD_ALT2) ev.xkey.state |= Mod5Mask;
 
     ev.xkey.keycode=XKeysymToKeycode(display, key);
+printf("SEND KEY: %d %c %d\n", state, key, key);
     XSendEvent(display, win, False, KeyPressMask | KeyReleaseMask, &ev);
     XSync(display, True);
 }
@@ -977,11 +978,13 @@ void X11SendEvent(Window win, unsigned int key, unsigned int mods, int state)
 
     if (Flags & FLAG_DEBUG) printf("sendkey: %c %d target=%x root=%x\n", key, key, win, RootWin);
 
+    //unset these keys on each new key
     X11SendKey(win, XK_Meta_L, 0, 0);
     X11SendKey(win, XK_Alt_L, 0, 0);
     X11SendKey(win, XK_Control_L, 0, 0);
     X11SendKey(win, XK_Shift_L, 0, 0);
 
+    //'press' modifier keys before we press our actual key/button
     if (mods & KEYMOD_SHIFT) X11SendKey(win, XK_Shift_L, 0, state);
     if (mods & KEYMOD_CTRL) X11SendKey(win, XK_Control_L, 0, state);
     if (mods & KEYMOD_ALT) X11SendKey(win, XK_Meta_L, 0, state);
@@ -1054,7 +1057,7 @@ int X11AddButtonGrab(int btn)
 {
     int result;
 
-    result=XGrabButton(display, btn, None, RootWin, False, ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None);
+   result=XGrabButton(display, btn, None, RootWin, False, ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None);
 }
 
 

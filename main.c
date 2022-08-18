@@ -58,7 +58,7 @@ int ProcessEvent(TProfile *Profile, Window win, TInputMap *ev)
 
         if ((ev->intype==EV_XKB) && (IMap->intype==EV_XKB))
         {
-            //printf("XKB: value=%d %d:%d %d:%d\n", ev->value, ev->input, IMap->input, ev->inmods, IMap->inmods);
+            printf("XKB: value=%d %d:%d %d:%d\n", ev->value, ev->input, IMap->input, ev->inmods, IMap->inmods);
         }
         if ( (ev->intype==IMap->intype) && (ev->input==IMap->input) && (ev->inmods==IMap->inmods) )
         {
@@ -369,7 +369,6 @@ void main(int argc, char *argv[])
         X11Input=STREAMFromFD(result);
         ActivateInputs(Inputs, Devices, X11Input);
 
-printf("INPUTS: %d\n", ListSize(Inputs));
         if (! (Flags & FLAG_NODEMON)) demonize();
 
         win=X11GetFocusedWin();
