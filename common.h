@@ -25,6 +25,7 @@ typedef enum {ACT_SENDKEY, ACT_EXEC, ACT_WINCLOSE, ACT_WINKILL, ACT_WINHIDE, ACT
 typedef struct
 {
 int flags;
+int active;
 unsigned int intype; //button, key, axis or xkeygrab
 unsigned int input; //input button, key, or axis
 int inmods; //input modifiers (shift, alt, etc)

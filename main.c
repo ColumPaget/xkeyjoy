@@ -7,6 +7,7 @@
 #include <linux/vt.h>
 
 char *ConfigPath=NULL;
+TProfile *KeyGrabs=NULL;
 
 //starts off as true, gets set false after reload, can be
 //set to true again by SIGHUP
@@ -194,11 +195,11 @@ TProfile *HandleWindowChange(Window win)
 //Thus grabs are only registered when we ReloadProfiles
     Tempstr=X11WindowGetCmdLine(Tempstr, win);
     Profile=ProfileForApp(Tempstr);
-    if (Flags & FLAG_DEBUG) 
-		{
-				printf("Winchange: %s %x\n", Tempstr, win);
-				printf("Profile for %s: %s\n", Tempstr, Profile->Apps);
-		}
+    if (Flags & FLAG_DEBUG)
+    {
+        printf("Winchange: %s %x\n", Tempstr, win);
+        printf("Profile for %s: %s\n", Tempstr, Profile->Apps);
+    }
 
     Destroy(Tempstr);
 
@@ -208,17 +209,10 @@ TProfile *HandleWindowChange(Window win)
 
 void ReloadProfiles(Window FocusWin)
 {
-    TProfile *Grabs;
 
-    Grabs=ProfilesReload(ConfigPath);
+    KeyGrabs=ProfilesReload(ConfigPath);
     ProfilesNeedReload=FALSE;
 
-    //we only setup key/button grabs with X11 when we load our config
-    //ProfilesReload returns a list of all grabs in the config file
-    //and we listen to all of them, and then decide whether the current
-    //window has a grab registered when a grab happens. If it doesn't
-    //we just pass the keystroke through to the current window
-    X11SetupGrabs(Grabs);
 }
 
 
@@ -372,9 +366,9 @@ void main(int argc, char *argv[])
         if (! (Flags & FLAG_NODEMON)) demonize();
 
         win=X11GetFocusedWin();
-            tv.tv_sec=1;
-            tv.tv_usec=0;
- 
+        tv.tv_sec=1;
+        tv.tv_usec=0;
+
         while (1)
         {
             if (ProfilesNeedReload)
@@ -385,19 +379,29 @@ void main(int argc, char *argv[])
                 prev_win=win;
             }
 
-           S=STREAMSelect(Inputs, &tv);
+	if (KeyGrabs)
+	{
+    //we only setup key/button grabs with X11 when we load our config
+    //ProfilesReload returns a list of all grabs in the config file
+    //and we listen to all of them, and then decide whether the current
+    //window has a grab registered when a grab happens. If it doesn't
+    //we just pass the keystroke through to the current window
+    X11SetupGrabs(KeyGrabs);
+	}
 
-						if ((tv.tv_sec==0) && (tv.tv_usec==0))
-						{
-            tv.tv_sec=1;
-            tv.tv_usec=0;
- 
-						//Leave/enter/motion x11 events don't always seem to work
-            win=X11GetFocusedWin();
-            if (win != prev_win) Profile=HandleWindowChange(win);
-            prev_win=win;
-            if (EvdevLoadDevices(Devices, FALSE)) ActivateInputs(Inputs, Devices, X11Input);
-						}
+            S=STREAMSelect(Inputs, &tv);
+
+            if ((tv.tv_sec==0) && (tv.tv_usec==0))
+            {
+                tv.tv_sec=1;
+                tv.tv_usec=0;
+
+                //Leave/enter/motion x11 events don't always seem to work
+                win=X11GetFocusedWin();
+                if (win != prev_win) Profile=HandleWindowChange(win);
+                prev_win=win;
+                if (EvdevLoadDevices(Devices, FALSE)) ActivateInputs(Inputs, Devices, X11Input);
+            }
 
             if (S)
             {
@@ -407,7 +411,7 @@ void main(int argc, char *argv[])
                     result=STREAMReadBytes(S, (char *) &ev, sizeof(struct input_event));
                     if ((result > 0) && (ev.type != EV_SYN))
                     {
-												if (Flags & FLAG_DEBUG) printf("EVDEV: %d '%s'\n", ev.code, EvdevLookupName(&ev));
+                        if (Flags & FLAG_DEBUG) printf("EVDEV: %d '%s'\n", ev.code, EvdevLookupName(&ev));
 
                         if (Profile) ProcessDevice(S, win, &ev, Profile);
                     }

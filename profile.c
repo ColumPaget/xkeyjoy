@@ -234,20 +234,25 @@ static unsigned int ProfileParseKey(const char *Value, int *mods)
 static void ProfileAddGrab(TInputMap *IMap)
 {
     int i;
+		TInputMap *Grab;
 
     for (i=0; i < Grabs->NoOfEvents; i++)
     {
+				Grab=Grabs->Events + i;
         if (
-            (Grabs->Events[i].intype==IMap->intype) &&
-            (Grabs->Events[i].input==IMap->input) &&
-            (Grabs->Events[i].inmods==IMap->inmods)
+            (Grab->intype==IMap->intype) &&
+            (Grab->input==IMap->input) &&
+            (Grab->inmods==IMap->inmods)
         ) return;
     }
 
     Grabs->Events=(TInputMap *) realloc(Grabs->Events, (Grabs->NoOfEvents+1) * sizeof(TInputMap));
-    Grabs->Events[Grabs->NoOfEvents].intype=IMap->intype;
-    Grabs->Events[Grabs->NoOfEvents].input=IMap->input;
-    Grabs->Events[Grabs->NoOfEvents].inmods=IMap->inmods;
+		Grab=Grabs->Events + i;
+    Grab->active=FALSE;
+    Grab->intype=IMap->intype;
+    Grab->input=IMap->input;
+    Grab->inmods=IMap->inmods;
+
     Grabs->NoOfEvents++;
 }
 
@@ -439,7 +444,6 @@ TProfile *ProfileGet(const char *Apps)
     Profile->Events=(TInputMap *) calloc(255, sizeof(TInputMap));
     Profile->Apps=CopyStr(Profile->Apps, Apps);
     ListAddNamedItem(Profiles, Profile->Apps, Profile);
-		printf("ProfileAdd: %s\n", Profile->Apps);
     return(Profile);
 }
 

@@ -811,7 +811,6 @@ int TerminalTranslateKeyStrWithMod(const char *str, int *mod)
             if (mod !=NULL) *mod |= KEYMOD_ALT2;
             str+=5;
         }
- 
         else break;
     }
 
@@ -970,14 +969,6 @@ int TerminalTranslateKeyStrWithMod(const char *str, int *mod)
 
     }
 
-    //if control is pressed, and the key is an alphabetic character, then
-    //convert it to a control char
-
-    if ((*mod & KEYMOD_CTRL) && (*str > 65) && (*str < 122))
-    {
-        *mod=0; //do not add a mod for these, as the character code alone implies it
-        return((tolower(*str) - 'a') +1);
-    }
     return((int) *str);
 }
 
@@ -986,6 +977,15 @@ int TerminalTranslateKeyStr(const char *str)
     int key, mod;
 
     key=TerminalTranslateKeyStrWithMod(str, &mod);
+
+    //if control is pressed, and the key is an alphabetic character, then
+    //convert it to a control char
+    if ((mod & KEYMOD_CTRL) && (*str > 65) && (*str < 122))
+    {
+        mod &= ~KEYMOD_CTRL; //do not add a mod for these, as the character code alone implies it
+        return((tolower(*str) - 'a') +1);
+    }
+
     if (mod==KEYMOD_SHIFT) key+=TKEY_SHIFT_BASE;
     if (mod==KEYMOD_CTRL) key+=TKEY_CTRL_BASE;
     if (mod==KEYMOD_ALT) key+=TKEY_ALT_BASE;
@@ -996,19 +996,38 @@ int TerminalTranslateKeyStr(const char *str)
 void TerminalGeometry(STREAM *S, int *wid, int *len)
 {
     struct winsize w;
+    const char *ptr;
+    int val=0;
 
+    memset(&w,0,sizeof(struct winsize));
     ioctl(S->out_fd, TIOCGWINSZ, &w);
+
+    ptr=STREAMGetValue(S, "Terminal:force_cols");
+    if (StrValid(ptr))
+    {
+        val=atoi(ptr);
+        if (val > 0) w.ws_col=val;
+    }
+
+    ptr=STREAMGetValue(S, "Terminal:force_rows");
+    if (StrValid(ptr))
+    {
+        val=atoi(ptr);
+        if (val > 0) w.ws_row=val;
+    }
 
     *wid=w.ws_col;
     *len=w.ws_row;
 }
 
 
-void TerminalInternalConfig(const char *Config, int *ForeColor, int *BackColor, int *Flags)
+void TerminalInternalConfig(const char *Config, int *ForeColor, int *BackColor, int *Flags, int *width, int *height)
 {
     char *Name=NULL, *Value=NULL;
     const char *ptr;
 
+    *width=TERM_AUTODETECT;
+    *height=TERM_AUTODETECT;
 
     ptr=GetNameValuePair(Config, " ","=",&Name,&Value);
     while (ptr)
@@ -1044,6 +1063,7 @@ void TerminalInternalConfig(const char *Config, int *ForeColor, int *BackColor, 
         case 'H':
             if (strcasecmp(Name, "hidecursor") ==0) *Flags |= TERM_HIDECURSOR;
             if (strcasecmp(Name,"hidetext")==0) *Flags |= TERM_HIDETEXT;
+            if (strcasecmp(Name,"height")==0) *height=atoi(Value);
             break;
 
         case 'm':
@@ -1073,6 +1093,7 @@ void TerminalInternalConfig(const char *Config, int *ForeColor, int *BackColor, 
         case 'w':
         case 'W':
             if (strcasecmp(Name,"wheelmouse")==0) *Flags=TERM_WHEELMOUSE;
+            if (strcasecmp(Name,"width")==0) *width=atoi(Value);
             break;
         }
 
@@ -2510,10 +2531,26 @@ int TerminalInit(STREAM *S, int Flags)
 
 void TerminalSetup(STREAM *S, const char *Config)
 {
-    int Flags=0, FColor, BColor;
+    int Flags=0, FColor, BColor, width, height;
+    char *Tempstr=NULL;
 
-    TerminalInternalConfig(Config, &FColor, &BColor, &Flags);
+    TerminalInternalConfig(Config, &FColor, &BColor, &Flags, &width, &height);
+
+    if (width > TERM_AUTODETECT)
+    {
+        Tempstr=FormatStr(Tempstr, "%d", width);
+        STREAMSetValue(S, "Terminal:force_cols", Tempstr);
+    }
+
+    if (height > TERM_AUTODETECT)
+    {
+        Tempstr=FormatStr(Tempstr, "%d", height);
+        STREAMSetValue(S, "Terminal:force_rows", Tempstr);
+    }
+
     TerminalInit(S, Flags);
+
+    Destroy(Tempstr);
 }
 
 

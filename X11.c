@@ -24,6 +24,19 @@ Window RootWin;
 int ButtonMask=0;
 
 
+void X11SetupEvents(Window CurrWin)
+{
+    XSetWindowAttributes WinAttr;
+
+    memset(&WinAttr, 0, sizeof(WinAttr));
+    WinAttr.event_mask = EVENT_MASK;
+    XChangeWindowAttributes(display, CurrWin, CWEventMask, &WinAttr);
+
+    XSelectInput(display, CurrWin, EVENT_MASK );
+
+    XFlush(display);
+}
+
 
 Window X11GetFocusedWin()
 {
@@ -31,7 +44,7 @@ Window X11GetFocusedWin()
     int trash;
 
     XGetInputFocus(display, &focused, &trash);
-		X11SetupEvents(focused);
+    X11SetupEvents(focused);
 
     return(focused);
 }
@@ -59,18 +72,6 @@ Window X11FindWin(const char *Name)
     return(None);
 }
 
-void X11SetupEvents(Window CurrWin)
-{
-    XSetWindowAttributes WinAttr;
-
-    memset(&WinAttr, 0, sizeof(WinAttr));
-    WinAttr.event_mask = EVENT_MASK;
-    XChangeWindowAttributes(display, CurrWin, CWEventMask, &WinAttr);
-
-    XSelectInput(display, CurrWin, EVENT_MASK );
-
-    XFlush(display);
-}
 
 int X11WindowGetState(Window win)
 {
@@ -822,7 +823,7 @@ void X11SendKey(Window win, int key, int mods, int state)
     if (mods & KEYMOD_ALT2) ev.xkey.state |= Mod5Mask;
 
     ev.xkey.keycode=XKeysymToKeycode(display, key);
-printf("SEND KEY: %d %c %d\n", state, key, key);
+    printf("SEND KEY: %d %c %d\n", state, key, key);
     XSendEvent(display, win, False, KeyPressMask | KeyReleaseMask, &ev);
     XSync(display, True);
 }
@@ -1050,14 +1051,19 @@ int X11AddKeyGrab(int key, int mods)
     sym=XKeysymToKeycode(display, X11TranslateKey(key));
 
     if (sym >0) result=XGrabKey(display, sym, modmask, RootWin, False, GrabModeAsync, GrabModeAsync);
-    if (Flags & FLAG_DEBUG) printf("Setup Keygrabs sym=%d key=%d mods=%d RootWin=%d result=%d\n", sym, key, mods, RootWin, result);
+    if (Flags & FLAG_DEBUG) printf("Setup KeyGrabs sym=%d key=%d mods=%d RootWin=%d result=%d\n", sym, key, mods, RootWin, result);
+
+	return(result);
 }
 
 int X11AddButtonGrab(int btn)
 {
-    int result;
+   int result;
 
    result=XGrabButton(display, btn, None, RootWin, False, ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None);
+   if (Flags & FLAG_DEBUG) printf("Setup ButtonGrabs btn=%d RootWin=%d result=%d\n", btn, RootWin, result);
+
+	return(result);
 }
 
 
@@ -1070,8 +1076,18 @@ void X11SetupGrabs(TProfile *Profile)
     {
         IMap=(TInputMap *) &Profile->Events[i];
 
-        if (IMap->intype==EV_XKB) X11AddKeyGrab(IMap->input, IMap->inmods);
-        if (IMap->intype==EV_XBTN) X11AddButtonGrab(IMap->input - MOUSE_BTN_1 +1);
+	if (IMap->active == FALSE)
+	{
+        if (IMap->intype==EV_XKB) 
+	{
+		if (X11AddKeyGrab(IMap->input, IMap->inmods) > 0) IMap->active=TRUE;
+	}
+        if (IMap->intype==EV_XBTN) 
+	{
+		if (X11AddButtonGrab(IMap->input - MOUSE_BTN_1 +1) > 0) IMap->active=TRUE;
+	}
+	}
+
     }
 }
 
@@ -1080,9 +1096,11 @@ void X11SetupGrabs(TProfile *Profile)
 int X11GetEvent(TInputMap *Input)
 {
     XEvent ev;
+    int result;
 
     Input->intype=0;
-    while (XPending(display))
+    result=XPending(display);
+    while (result > 0)
     {
         XNextEvent(display, &ev);
 
@@ -1132,6 +1150,13 @@ int X11GetEvent(TInputMap *Input)
             XSendEvent(display, ev.xmotion.window, True, PointerMotionMask | ButtonPressMask | ButtonReleaseMask | ButtonMotionMask, &ev);
             break;
         }
+        result=XPending(display);
+    }
+
+    if (result==-1)
+    {
+        fprintf(stderr, "ERROR: Disconnected from X11 Server\n");
+        exit(1);
     }
 
     return(TRUE);
@@ -1144,7 +1169,11 @@ int X11Init()
 {
 
     display = XOpenDisplay(getenv("DISPLAY"));
-    if (display == NULL) return(-1);
+    if (display == NULL)
+	{
+	fprintf(stderr, "ERROR: Can't connect to X11 Server\n");
+		 return(-1);
+	}
 
     XSetErrorHandler(X11ErrorHandler);
 
