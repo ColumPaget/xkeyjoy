@@ -234,11 +234,11 @@ static unsigned int ProfileParseKey(const char *Value, int *mods)
 static void ProfileAddGrab(TInputMap *IMap)
 {
     int i;
-		TInputMap *Grab;
+    TInputMap *Grab;
 
     for (i=0; i < Grabs->NoOfEvents; i++)
     {
-				Grab=Grabs->Events + i;
+        Grab=Grabs->Events + i;
         if (
             (Grab->intype==IMap->intype) &&
             (Grab->input==IMap->input) &&
@@ -247,7 +247,7 @@ static void ProfileAddGrab(TInputMap *IMap)
     }
 
     Grabs->Events=(TInputMap *) realloc(Grabs->Events, (Grabs->NoOfEvents+1) * sizeof(TInputMap));
-		Grab=Grabs->Events + i;
+    Grab=Grabs->Events + i;
     Grab->active=FALSE;
     Grab->intype=IMap->intype;
     Grab->input=IMap->input;

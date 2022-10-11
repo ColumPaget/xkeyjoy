@@ -57,10 +57,6 @@ int ProcessEvent(TProfile *Profile, Window win, TInputMap *ev)
         target=X11FindWin(IMap->target);
         if (! target) target=win;
 
-        if ((ev->intype==EV_XKB) && (IMap->intype==EV_XKB))
-        {
-            printf("XKB: value=%d %d:%d %d:%d\n", ev->value, ev->input, IMap->input, ev->inmods, IMap->inmods);
-        }
         if ( (ev->intype==IMap->intype) && (ev->input==IMap->input) && (ev->inmods==IMap->inmods) )
         {
             matched=TRUE;
@@ -217,12 +213,13 @@ void ReloadProfiles(Window FocusWin)
 
 
 
-void HandleX11Keygrabs(Window win, TProfile *Profile)
+int HandleX11Keygrabs(Window win, TProfile *Profile)
 {
     TInputMap ev;
 
-    X11GetEvent(&ev);
+    if (! X11GetEvent(&ev)) return(FALSE);
     if (! ProcessEvent(Profile, win, &ev)) X11SendEvent(win, ev.input, ev.inmods, ev.value);
+    return(TRUE);
 }
 
 
@@ -325,12 +322,29 @@ void ActivateInputs(ListNode *Inputs, ListNode *Devices, STREAM *X11Input)
 }
 
 
+STREAM *X11Connect(ListNode *Devices, ListNode *Inputs)
+{
+    int result;
+    STREAM *S=NULL;
+
+    result=X11Init();
+    if (result > -1)
+    {
+        S=STREAMFromFD(result);
+        ActivateInputs(Inputs, Devices, S);
+    }
+
+    return(S);
+}
+
+
 void main(int argc, char *argv[])
 {
     ListNode *Devices, *Curr;
     ListNode *Inputs;
     Window win, prev_win=None;
-    STREAM *S, *X11Input;
+    STREAM *X11Input=NULL;
+    STREAM *S;
     char *Tempstr=NULL;
     TProfile *Profile=NULL;
     struct input_event ev;
@@ -353,22 +367,13 @@ void main(int argc, char *argv[])
     else
     {
         Inputs=ListCreate();
-        result=X11Init();
-        if (result==-1)
-        {
-            printf("XOpenDisplay() failed. Cannot continue.\n");
-            exit(1);
-        }
-
-        X11Input=STREAMFromFD(result);
-        ActivateInputs(Inputs, Devices, X11Input);
 
         if (! (Flags & FLAG_NODEMON)) demonize();
 
-        win=X11GetFocusedWin();
+        if (! X11Input) X11Input=X11Connect(Devices, Inputs);
+
         tv.tv_sec=1;
         tv.tv_usec=0;
-
         while (1)
         {
             if (ProfilesNeedReload)
@@ -379,15 +384,15 @@ void main(int argc, char *argv[])
                 prev_win=win;
             }
 
-	if (KeyGrabs)
-	{
-    //we only setup key/button grabs with X11 when we load our config
-    //ProfilesReload returns a list of all grabs in the config file
-    //and we listen to all of them, and then decide whether the current
-    //window has a grab registered when a grab happens. If it doesn't
-    //we just pass the keystroke through to the current window
-    X11SetupGrabs(KeyGrabs);
-	}
+            if (KeyGrabs)
+            {
+                //we only setup key/button grabs with X11 when we load our config
+                //ProfilesReload returns a list of all grabs in the config file
+                //and we listen to all of them, and then decide whether the current
+                //window has a grab registered when a grab happens. If it doesn't
+                //we just pass the keystroke through to the current window
+                X11SetupGrabs(KeyGrabs);
+            }
 
             S=STREAMSelect(Inputs, &tv);
 
@@ -395,6 +400,8 @@ void main(int argc, char *argv[])
             {
                 tv.tv_sec=1;
                 tv.tv_usec=0;
+
+                if (! X11Input) X11Input=X11Connect(Devices, Inputs);
 
                 //Leave/enter/motion x11 events don't always seem to work
                 win=X11GetFocusedWin();
@@ -405,7 +412,14 @@ void main(int argc, char *argv[])
 
             if (S)
             {
-                if (S==X11Input) HandleX11Keygrabs(win, Profile);
+                if (S==X11Input)
+                {
+                    if (!	HandleX11Keygrabs(win, Profile))
+                    {
+                        STREAMClose(X11Input);
+                        X11Input=NULL;
+                    }
+                }
                 else
                 {
                     result=STREAMReadBytes(S, (char *) &ev, sizeof(struct input_event));

@@ -1053,17 +1053,17 @@ int X11AddKeyGrab(int key, int mods)
     if (sym >0) result=XGrabKey(display, sym, modmask, RootWin, False, GrabModeAsync, GrabModeAsync);
     if (Flags & FLAG_DEBUG) printf("Setup KeyGrabs sym=%d key=%d mods=%d RootWin=%d result=%d\n", sym, key, mods, RootWin, result);
 
-	return(result);
+    return(result);
 }
 
 int X11AddButtonGrab(int btn)
 {
-   int result;
+    int result;
 
-   result=XGrabButton(display, btn, None, RootWin, False, ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None);
-   if (Flags & FLAG_DEBUG) printf("Setup ButtonGrabs btn=%d RootWin=%d result=%d\n", btn, RootWin, result);
+    result=XGrabButton(display, btn, None, RootWin, False, ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None);
+    if (Flags & FLAG_DEBUG) printf("Setup ButtonGrabs btn=%d RootWin=%d result=%d\n", btn, RootWin, result);
 
-	return(result);
+    return(result);
 }
 
 
@@ -1076,17 +1076,17 @@ void X11SetupGrabs(TProfile *Profile)
     {
         IMap=(TInputMap *) &Profile->Events[i];
 
-	if (IMap->active == FALSE)
-	{
-        if (IMap->intype==EV_XKB) 
-	{
-		if (X11AddKeyGrab(IMap->input, IMap->inmods) > 0) IMap->active=TRUE;
-	}
-        if (IMap->intype==EV_XBTN) 
-	{
-		if (X11AddButtonGrab(IMap->input - MOUSE_BTN_1 +1) > 0) IMap->active=TRUE;
-	}
-	}
+        if (IMap->active == FALSE)
+        {
+            if (IMap->intype==EV_XKB)
+            {
+                if (X11AddKeyGrab(IMap->input, IMap->inmods) > 0) IMap->active=TRUE;
+            }
+            if (IMap->intype==EV_XBTN)
+            {
+                if (X11AddButtonGrab(IMap->input - MOUSE_BTN_1 +1) > 0) IMap->active=TRUE;
+            }
+        }
 
     }
 }
@@ -1156,7 +1156,7 @@ int X11GetEvent(TInputMap *Input)
     if (result==-1)
     {
         fprintf(stderr, "ERROR: Disconnected from X11 Server\n");
-        exit(1);
+        return(FALSE);
     }
 
     return(TRUE);
@@ -1170,10 +1170,10 @@ int X11Init()
 
     display = XOpenDisplay(getenv("DISPLAY"));
     if (display == NULL)
-	{
-	fprintf(stderr, "ERROR: Can't connect to X11 Server\n");
-		 return(-1);
-	}
+    {
+        fprintf(stderr, "ERROR: Can't connect to X11 Server\n");
+        return(-1);
+    }
 
     XSetErrorHandler(X11ErrorHandler);
 
