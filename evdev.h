@@ -25,6 +25,6 @@ void EvdevDeviceDestroy(void *Dev);
 void EvdevMonitorDevice(ListNode *Devices, const char *Name);
 int EvdevLoadDevices(ListNode *Devices, int Inital);
 const char *EvdevLookupName(struct input_event *ev);
-
+void EvdevRemoveDevice(ListNode *Devices, STREAM *S);
 
 #endif

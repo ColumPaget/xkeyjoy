@@ -432,6 +432,7 @@ void main(int argc, char *argv[])
                     else if (result < 1)
                     {
                         if (Flags & FLAG_DEBUG) printf("REMOVE %s\n", S->Path);
+                        EvdevRemoveDevice(Devices, S);
                         ListDeleteItem(Inputs, S);
                         STREAMClose(S);
                     }

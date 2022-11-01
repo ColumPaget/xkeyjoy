@@ -348,12 +348,38 @@ int EvdevLoadDevices(ListNode *Devices, int Initial)
     return(New);
 }
 
+
+
+
 void EvdevDeviceDestroy(void *p_Dev)
 {
     TEvDev *Dev;
 
     Dev=(TEvDev *) p_Dev;
     Destroy(Dev->name);
-    STREAMClose(Dev->S);
+		//Do not close stream, it will be closed elsewhere
+    //STREAMClose(Dev->S);
     Destroy(Dev);
+}
+
+
+void EvdevRemoveDevice(ListNode *Devices, STREAM *S)
+{
+ListNode *Curr, *Next;
+TEvDev *Dev;
+
+
+Curr=ListGetNext(Devices);
+while (Curr)
+{
+Next=ListGetNext(Curr);
+Dev=(TEvDev *) Curr->Item;
+if (Dev->S == S) 
+{
+ListDeleteNode(Curr);
+EvdevDeviceDestroy(Dev);
+}
+Curr=Next;
+}
+
 }
