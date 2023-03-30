@@ -3,7 +3,7 @@ SUMMARY
 
 xkeyjoy is a daemon process that maps input from gamepads via evdev or from mice and keyboards via X11. These inputs can be used to launch programs or be mapped to keypresses to control running programs. xkeyjoy can detect which window has current focus, hopefully can figure out which application is running, and can use a unique configuration for that application. Currently there is no GUI, all configuration is done via config files.
 
-For xkeyjoy to detect which application has the current focus that application must either expose it's process id, or its commandline as X11 properties. xkeyjoy first looks for the `_NET_WM_PID` property that contains the process id, and if it gets that it looks the process up in /proc to obtain its full command-line. If the application doesn't expose the `_NEW_WM_PID` property, then xkeyjoy checks for the `XA_WM_COMMAND` property that should contain the applications full command-line. If that's missing, then xkeyjoy falls back to the `XA_WM_NAME` property, from which it can at least obtain the program's name. It will then try to match the program's command-line, or name if that's all it's got, against configuration profiles to select the right one.
+For xkeyjoy to detect which application has the current focus that application must either expose its process id, or its commandline as X11 properties. xkeyjoy first looks for the `_NET_WM_PID` property that contains the process id, and if it gets that it looks the process up in /proc to obtain its full command-line. If the application doesn't expose the `_NEW_WM_PID` property, then xkeyjoy checks for the `XA_WM_COMMAND` property that should contain the applications full command-line. If that's missing, then xkeyjoy falls back to the `XA_WM_NAME` property, from which it can at least obtain the program's name. It will then try to match the program's command-line, or name if that's all it's got, against configuration profiles to select the right one.
 
 
 DISCLAIMER
@@ -15,19 +15,47 @@ This is free software. It comes with no guarentees and I take no responsiblity i
 INVOCATION
 ==========
 
-xkeyjoy <options>
+xkeyjoy list          - print out list of available evdev devices
+xkeyjoy mon <dev>     - monitor an evdev device and print out its events
 
-*  -d           don't daemonize (don't fork into background)
-*  -c <path>    path to a config file, or a directory containing config files
-*  -v           output program version
-*  -version     output program version
-*  --version    output program version
-*  -?           output program help
-*  -h           output program help
-*  -help        output program help
-*  --help       output program help
+xkeyjoy <options>     - normal use: monitor devices and trigger actions off their events
 
-Normally you'll just run ./xkeyjoy to fork it into the background. By default xkeyjoy looks for config files in the '/etc/xkeyjoy' and '~/.xkeyjoy' directories.
+options:
+*  -D                    don't daemonize (don't fork into background) and print debugging
+*  -debug                don't daemonize (don't fork into background) and print debugging
+*  -c <path>             path to a config file, or a directory containing config files
+*  -n                    don't attach to any evdev devices, just use X11 keygrabs
+*  -nodev                don't attach to any evdev devices, just use X11 keygrabs
+*  -devtypes <types>     list of evdev device types to use, default is "!keyboard,!mouse,!trackpad,!touchscreen,!tablet"
+*  -t <types>            list of evdev device types to use, default is "!keyboard,!mouse,!trackpad,!touchscreen,!tablet"
+*  -devs <list>          list of evdev devices to use, utilizes the full device name
+*  -d <list>             list of evdev devices to use, utilizes the full device name
+*  -v                    output program version
+*  -version              output program version
+*  --version             output program version
+*  -?                    output program help
+*  -h                    output program help
+*  -help                 output program help
+*  --help                output program help
+
+Normally you'll just run ./xkeyjoy to fork it into the background. By default xkeyjoy looks for config files in the '/etc/xkeyjoy', '~/.xkeyjoy' and '~/.config/xkeyjoy' directories.
+
+
+DEVICE TYPES
+============
+
+The '-t' and '-devtypes' options set a list of device types to use, or not use. Available device types are: keyboard, mouse, trackpad, touchscreen, tablet, game, switch, other. 'game' relates to gamepads joysticks and any other devices that have ABS (absolute movement) capabilities. 'switch' covers things like lid switches, headphone jacks that trigger an event when phones are plugged in, and some power buttons. 'other' covers anything where a proper device type can't be deduced.
+
+Putting a '!' in front of a devicetype name indicates that devices of that type should not be attached to by xkeyjoy. The default setting for this is "!keyboard,!mouse,!trackpad,!touchscreen,!tablet" as usually these devices will be monitored using X11 keygrabs rather than grabbing them via evdev. If xkeyjoy grabs a device via evdev, then other applications are denied evdev access to that device, and this can cause issues for some programs. 
+
+The '-devs' and '-d' options allow specifying that a device is to be used or not used (the latter by prepending the device name with '!'). The names of devices can be seen within curly braces, {}, when running 'xkeyjoy list'. These options override the '-t' and '-devtypes' options. Unfortunately the full name of the device has to be used, which brings all kinds of issues, but for example:
+
+```
+./xkeyjoy -devtypes '!mouse' -devs "EXAMPLECORP USB MOUSE"
+```
+
+Would disallow use of all mice, except your EXAMPLECORP mouse.
+
 
 
 CONFIG FILES
@@ -94,7 +122,7 @@ So, for example,
 default xkb:calc=exec:xterm xkb:www=exec:otter-browser
 ```
 
-Will cause the calculator and www buttons found on many internet keyboards to launch xterm or the otter webbrowser respectively.
+Will cause the calculator and www buttons found on many internet keyboards to launch xterm or the otter webbrowser respectively, IF NO OTHER PROFILE USES THEM.
 
 However,
 
@@ -225,7 +253,8 @@ Modifiers: shift, ctrl, alt, ralt
 
 'esc' is the standard escape key, 'win' is the windows key, 'volup' and 'voldown' are the increase and decrease volume keys on media keyboards. 'play' is the 'play or pause' key on media keyboards. 'scrlck' is the scroll-lock key, 'print' is the print-screen key and 'pause' is the pause/break key.
 
-The modifiers are ekys that can be combined with another key in the style 'alt-z' or 'shift-delete'. 'ralt' is 'right-alt', which maps to 'mod5' under X11.
+The modifiers are keys that can be combined with another key in the style 'alt-z' or 'shift-delete'. 'ralt' is 'right-alt', which maps to 'mod5' under X11.
+
 
 SUPPORTED GAMEPADS
 ==================

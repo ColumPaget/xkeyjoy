@@ -3,10 +3,11 @@
 #include "profile.h"
 #include "evdev.h"
 #include "wait.h"
+#include "config.h"
+#include "command_line.h"
 #include <sys/ioctl.h>
 #include <linux/vt.h>
 
-char *ConfigPath=NULL;
 TProfile *KeyGrabs=NULL;
 
 //starts off as true, gets set false after reload, can be
@@ -51,6 +52,10 @@ int ProcessEvent(TProfile *Profile, Window win, TInputMap *ev)
     pid_t pid;
 
     if (! Profile) return(FALSE);
+
+    //intype==0 is effectively a non-event, so claim we processed it
+    if (ev->intype==0) return(TRUE);
+
     for (i=0; i < Profile->NoOfEvents; i++)
     {
         IMap=(TInputMap *) &Profile->Events[i];
@@ -191,7 +196,7 @@ TProfile *HandleWindowChange(Window win)
 //Thus grabs are only registered when we ReloadProfiles
     Tempstr=X11WindowGetCmdLine(Tempstr, win);
     Profile=ProfileForApp(Tempstr);
-    if (Flags & FLAG_DEBUG)
+    if (Config.Flags & FLAG_DEBUG)
     {
         printf("Winchange: %s %x\n", Tempstr, win);
         printf("Profile for %s: %s\n", Tempstr, Profile->Apps);
@@ -206,7 +211,7 @@ TProfile *HandleWindowChange(Window win)
 void ReloadProfiles(Window FocusWin)
 {
 
-    KeyGrabs=ProfilesReload(ConfigPath);
+    KeyGrabs=ProfilesReload(Config.ConfigPath);
     ProfilesNeedReload=FALSE;
 
 }
@@ -222,76 +227,6 @@ int HandleX11Keygrabs(Window win, TProfile *Profile)
     return(TRUE);
 }
 
-
-int ParseCommandLine(int argc, char *argv[])
-{
-    CMDLINE *CmdLine;
-    const char *p_arg;
-    int Flags=0;
-
-    CmdLine=CommandLineParserCreate(argc, argv);
-
-    p_arg=CommandLineFirst(CmdLine);
-    if (p_arg)
-    {
-        if (strcmp(p_arg, "list")==0)
-        {
-            Flags |= FLAG_LISTDEVS;
-            p_arg=CommandLineNext(CmdLine);
-        }
-        else if (strcmp(p_arg, "mon")==0)
-        {
-            Flags |= FLAG_MONITOR;
-            p_arg=CommandLineFirst(CmdLine);
-            if (! StrValid(p_arg))
-            {
-                printf("ERROR: no device-name given for monitor. Cannot continue\n");
-                exit(1);
-            }
-            p_arg=CommandLineFirst(CmdLine);
-        }
-    }
-
-    while (p_arg)
-    {
-        if (strcmp(p_arg, "-d")==0) Flags |= FLAG_NODEMON;
-        else if (strcmp(p_arg, "-v")==0) Flags |= FLAG_VERSION;
-        else if (strcmp(p_arg, "-version")==0) Flags |= FLAG_VERSION;
-        else if (strcmp(p_arg, "--version")==0) Flags |= FLAG_VERSION;
-        else if (strcmp(p_arg, "-h")==0) Flags |= FLAG_HELP;
-        else if (strcmp(p_arg, "-?")==0) Flags |= FLAG_HELP;
-        else if (strcmp(p_arg, "-help")==0) Flags |= FLAG_HELP;
-        else if (strcmp(p_arg, "--help")==0) Flags |= FLAG_HELP;
-        else if (strcmp(p_arg, "-c")==0) ConfigPath=CopyStr(ConfigPath, CommandLineNext(CmdLine));
-        p_arg=CommandLineNext(CmdLine);
-
-    }
-
-    return(Flags);
-}
-
-
-void DisplayHelp()
-{
-    printf("Usage:\n");
-    printf("   xkeyjoy [options]\n");
-    printf("   xkeyjoy list\n");
-    printf("   xkeyjoy mon <device name>\n");
-    printf("\n");
-    printf("'xkeyjoy' without a modifer (list, mon) will run in daemon mode and process any devices that either have switch, or axis inputs (lid switch, rfkill, gamepads, joysticks etc).\n");
-    printf("xkeyjoy list' lists input devices that xkeyjoy can currently receive events from.\n");
-    printf("'xkeyjoy mon' can be used to monitor events coming from a specific device. e.g. 'xkeyjoy mon event1'\n");
-    printf("\nOptions for daemon mode are:\n");
-    printf("-d          don't background/daemonize\n");
-    printf("-c <path>   path to config file or directory containing config files\n");
-    printf("-v          output version info\n");
-    printf("-version    output version info\n");
-    printf("--version   output version info\n");
-    printf("-h          this help\n");
-    printf("-?          this help\n");
-    printf("-help       this help\n");
-    printf("--help      this help\n");
-}
 
 
 
@@ -310,8 +245,8 @@ void ActivateInputs(ListNode *Inputs, ListNode *Devices, STREAM *X11Input)
         if (Dev->S != NULL)
         {
             if (
-                BitIsSet(& (Dev->caps), EV_ABS) ||
-                BitIsSet(& (Dev->caps), EV_SW)
+                BitIsSet(& (Dev->caps), EV_ABS, sizeof(uint64_t)) ||
+                BitIsSet(& (Dev->caps), EV_SW, sizeof(uint64_t))
             )
             {
                 ListAddItem(Inputs, Dev->S);
@@ -338,7 +273,8 @@ STREAM *X11Connect(ListNode *Devices, ListNode *Inputs)
 }
 
 
-void main(int argc, char *argv[])
+
+void XKeyJoyMainLoop()
 {
     ListNode *Devices, *Curr;
     ListNode *Inputs;
@@ -352,102 +288,105 @@ void main(int argc, char *argv[])
     struct timeval tv;
 
     Devices=ListCreate();
-    ConfigPath=CopyStr(ConfigPath, "/etc/xkeyjoy:~/.xkeyjoy:~/.config/xkeyjoy");
+    EvdevLoadDevices(Devices, EDSTATE_INITIAL);
+    Inputs=ListCreate();
+
+    if (! (Config.Flags & FLAG_NODEMON)) demonize();
+
+    if (! X11Input) X11Input=X11Connect(Devices, Inputs);
+
+    tv.tv_sec=1;
+    tv.tv_usec=0;
+    while (1)
+    {
+        if (ProfilesNeedReload)
+        {
+            win=X11GetFocusedWin();
+            ReloadProfiles(win);
+            Profile=HandleWindowChange(win);
+            prev_win=win;
+        }
+
+        if (KeyGrabs)
+        {
+            //we only setup key/button grabs with X11 when we load our config
+            //ProfilesReload returns a list of all grabs in the config file
+            //and we listen to all of them, and then decide whether the current
+            //window has a grab registered when a grab happens. If it doesn't
+            //we just pass the keystroke through to the current window
+            X11SetupGrabs(KeyGrabs);
+        }
+
+        S=STREAMSelect(Inputs, &tv);
+
+        if ((tv.tv_sec==0) && (tv.tv_usec==0))
+        {
+            tv.tv_sec=1;
+            tv.tv_usec=0;
+
+            if (! X11Input) X11Input=X11Connect(Devices, Inputs);
+
+            //Leave/enter/motion x11 events don't always seem to work
+            win=X11GetFocusedWin();
+            if (win != prev_win) Profile=HandleWindowChange(win);
+            prev_win=win;
+            if (EvdevLoadDevices(Devices, 0)) ActivateInputs(Inputs, Devices, X11Input);
+        }
+
+        if (S)
+        {
+            if (S==X11Input)
+            {
+                if (!	HandleX11Keygrabs(win, Profile))
+                {
+                    STREAMClose(X11Input);
+                    X11Input=NULL;
+                }
+            }
+            else
+            {
+                result=STREAMReadBytes(S, (char *) &ev, sizeof(struct input_event));
+                if ((result > 0) && (ev.type != EV_SYN))
+                {
+                    if (Config.Flags & FLAG_DEBUG) printf("EVDEV: %d '%s'\n", ev.code, EvdevLookupName(&ev));
+
+                    if (Profile) ProcessDevice(S, win, &ev, Profile);
+                }
+                else if (result < 1)
+                {
+                    if (Config.Flags & FLAG_DEBUG) printf("REMOVE %s\n", S->Path);
+                    EvdevRemoveDevice(Devices, S);
+                    ListDeleteItem(Inputs, S);
+                    STREAMClose(S);
+                }
+            }
+        }
+
+        //collect exited child processes
+        for (i=0; i < 100; i++)
+        {
+            if (waitpid(-1, NULL, WNOHANG)==-1) break;
+        }
+
+    }
+    Destroy(Tempstr);
+}
+
+
+void main(int argc, char *argv[])
+{
+
+    ConfigInit();
     signal(SIGHUP, SignalHandler);
 
-    Flags=ParseCommandLine(argc, argv);
-    if ( (Flags & FLAG_NODEMON) && (isatty(1)) ) Flags |= FLAG_DEBUG;
+    ParseCommandLine(argc, argv);
+    if ( (Config.Flags & FLAG_NODEMON) && (isatty(1)) ) Config.Flags |= FLAG_DEBUG;
 
-    EvdevLoadDevices(Devices, TRUE);
 
-    if (Flags & FLAG_HELP) DisplayHelp();
-    else if (Flags & FLAG_VERSION) printf("version: %s\n", VERSION);
-    else if (Flags & FLAG_LISTDEVS) EvdevListDevices(Devices);
-    else if (Flags & FLAG_MONITOR) EvdevMonitorDevice(Devices, argv[2]);
-    else
-    {
-        Inputs=ListCreate();
-
-        if (! (Flags & FLAG_NODEMON)) demonize();
-
-        if (! X11Input) X11Input=X11Connect(Devices, Inputs);
-
-        tv.tv_sec=1;
-        tv.tv_usec=0;
-        while (1)
-        {
-            if (ProfilesNeedReload)
-            {
-                win=X11GetFocusedWin();
-                ReloadProfiles(win);
-                Profile=HandleWindowChange(win);
-                prev_win=win;
-            }
-
-            if (KeyGrabs)
-            {
-                //we only setup key/button grabs with X11 when we load our config
-                //ProfilesReload returns a list of all grabs in the config file
-                //and we listen to all of them, and then decide whether the current
-                //window has a grab registered when a grab happens. If it doesn't
-                //we just pass the keystroke through to the current window
-                X11SetupGrabs(KeyGrabs);
-            }
-
-            S=STREAMSelect(Inputs, &tv);
-
-            if ((tv.tv_sec==0) && (tv.tv_usec==0))
-            {
-                tv.tv_sec=1;
-                tv.tv_usec=0;
-
-                if (! X11Input) X11Input=X11Connect(Devices, Inputs);
-
-                //Leave/enter/motion x11 events don't always seem to work
-                win=X11GetFocusedWin();
-                if (win != prev_win) Profile=HandleWindowChange(win);
-                prev_win=win;
-                if (EvdevLoadDevices(Devices, FALSE)) ActivateInputs(Inputs, Devices, X11Input);
-            }
-
-            if (S)
-            {
-                if (S==X11Input)
-                {
-                    if (!	HandleX11Keygrabs(win, Profile))
-                    {
-                        STREAMClose(X11Input);
-                        X11Input=NULL;
-                    }
-                }
-                else
-                {
-                    result=STREAMReadBytes(S, (char *) &ev, sizeof(struct input_event));
-                    if ((result > 0) && (ev.type != EV_SYN))
-                    {
-                        if (Flags & FLAG_DEBUG) printf("EVDEV: %d '%s'\n", ev.code, EvdevLookupName(&ev));
-
-                        if (Profile) ProcessDevice(S, win, &ev, Profile);
-                    }
-                    else if (result < 1)
-                    {
-                        if (Flags & FLAG_DEBUG) printf("REMOVE %s\n", S->Path);
-                        EvdevRemoveDevice(Devices, S);
-                        ListDeleteItem(Inputs, S);
-                        STREAMClose(S);
-                    }
-                }
-            }
-
-            //collect exited child processes
-            for (i=0; i < 100; i++)
-            {
-                if (waitpid(-1, NULL, WNOHANG)==-1) break;
-            }
-
-        }
-    }
-
-    Destroy(Tempstr);
+    if (Config.Flags & FLAG_HELP) DisplayHelp();
+    else if (Config.Flags & FLAG_VERSION) printf("version: %s\n", VERSION);
+    else if (Config.Flags & FLAG_LISTDEVS) EvdevListDevices();
+    else if (Config.Flags & FLAG_MONITOR) EvdevMonitorDevice(argv[2]);
+    else XKeyJoyMainLoop();
 }
 

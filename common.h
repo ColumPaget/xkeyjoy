@@ -1,15 +1,15 @@
 #ifndef XKEYJOY_COMMON_H
 #define XKEYJOY_COMMON_H
 
+#ifdef HAVE_LIBUSEFUL5
+#include "libUseful-5/libUseful.h"
+#else
 #include "libUseful-4/libUseful.h"
+#endif
+
+
 #include <glob.h>
 
-#define FLAG_HELP  1
-#define FLAG_VERSION  2
-#define FLAG_LISTDEVS 4
-#define FLAG_MONITOR  8
-#define FLAG_NODEMON  16
-#define FLAG_DEBUG 32
 
 #define XKEYDOWN 1
 #define XKEYUP   2
@@ -36,9 +36,7 @@ unsigned int outmods; //output modifiers (shift, alt, etc)
 char *target;
 } TInputMap;
 
-extern int Flags;
-
-int BitIsSet(void *BitMask, int BitPos);
+int BitIsSet(void *BitMask, int BitPos, int size);
 char *ReadFile(char *RetStr, const char *Path);
 
 

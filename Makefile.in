@@ -1,16 +1,15 @@
-OBJ=X11.o evdev.o profile.o proc.o common.o
-CFLAGS=@CFLAGS@
+OBJ=X11.o evdev.o profile.o proc.o command_line.o config.o common.o
+CFLAGS=@CFLAGS@ @DEFS@
 LDFLAGS=@LDFLAGS@
 LIBS=@LIBS@
-LIBUSEFUL=@LIBUSEFUL@
-VERSION=3.4
+VERSION=4.0
 prefix=@prefix@
 
-all: $(OBJ) $(LIBUSEFUL)
-	$(CC) -oxkeyjoy -DVERSION=\"$(VERSION)\" $(CFLAGS) $(LDFLAGS) $(OBJ) main.c $(LIBS) $(LIBUSEFUL)
+all: $(OBJ)
+	$(CC) -oxkeyjoy -DVERSION=\"$(VERSION)\" $(CFLAGS) $(LDFLAGS) $(OBJ) main.c $(LIBS)
 
-$(LIBUSEFUL):
-	$(MAKE) -C libUseful-4
+libUseful-5/libUseful.a:
+	$(MAKE) -C libUseful-5
 
 
 X11.o: X11.c X11.h common.h
@@ -24,6 +23,12 @@ proc.o: proc.c proc.h
 
 evdev.o: evdev.c evdev.h
 	$(CC) -c evdev.c $(CFLAGS)
+
+command_line.o: command_line.c command_line.h
+	$(CC) -c command_line.c $(CFLAGS)
+
+config.o: config.c config.h
+	$(CC) -c config.c $(CFLAGS)
 
 common.o: common.c common.h
 	$(CC) -c common.c $(CFLAGS)

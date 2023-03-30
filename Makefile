@@ -1,16 +1,15 @@
-OBJ=X11.o evdev.o profile.o proc.o common.o
-CFLAGS=-g -O2 -DHAVE_LINUX_INPUT_H -I/usr/X11R7/include
+OBJ=X11.o evdev.o profile.o proc.o command_line.o config.o common.o
+CFLAGS=-g -O2 -DHAVE_LINUX_INPUT_H -I/usr/X11R7/include -DPACKAGE_NAME=\"\" -DPACKAGE_TARNAME=\"\" -DPACKAGE_VERSION=\"\" -DPACKAGE_STRING=\"\" -DPACKAGE_BUGREPORT=\"\" -DPACKAGE_URL=\"\" -DSTDC_HEADERS=1 -D_FILE_OFFSET_BITS=64 -DHAVE_SYS_TYPES_H=1 -DHAVE_SYS_STAT_H=1 -DHAVE_STDLIB_H=1 -DHAVE_STRING_H=1 -DHAVE_MEMORY_H=1 -DHAVE_STRINGS_H=1 -DHAVE_INTTYPES_H=1 -DHAVE_STDINT_H=1 -DHAVE_UNISTD_H=1 -DHAVE_LIBX11=1 -DHAVE_X11=1 -DHAVE_XKBKEYCODETOKEYSYM=1 -DHAVE_LIBUSEFUL_5_LIBUSEFUL_H=1 -DHAVE_LIBUSEFUL5=1 -DHAVE_LIBUSEFUL_5=1 -DHAVE_LIBSSL=1 -DHAVE_LIBCRYPTO=1
 LDFLAGS= -L/usr/X11R7/lib
-LIBS=-lX11 
-LIBUSEFUL=libUseful-4/libUseful.a
-VERSION=3.4
+LIBS=-lcrypto -lssl -lUseful-5 -lX11 
+VERSION=4.0
 prefix=/usr/local
 
-all: $(OBJ) $(LIBUSEFUL)
-	$(CC) -oxkeyjoy -DVERSION=\"$(VERSION)\" $(CFLAGS) $(LDFLAGS) $(OBJ) main.c $(LIBS) $(LIBUSEFUL)
+all: $(OBJ)
+	$(CC) -oxkeyjoy -DVERSION=\"$(VERSION)\" $(CFLAGS) $(LDFLAGS) $(OBJ) main.c $(LIBS)
 
-$(LIBUSEFUL):
-	$(MAKE) -C libUseful-4
+libUseful-5/libUseful.a:
+	$(MAKE) -C libUseful-5
 
 
 X11.o: X11.c X11.h common.h
@@ -24,6 +23,12 @@ proc.o: proc.c proc.h
 
 evdev.o: evdev.c evdev.h
 	$(CC) -c evdev.c $(CFLAGS)
+
+command_line.o: command_line.c command_line.h
+	$(CC) -c command_line.c $(CFLAGS)
+
+config.o: config.c config.h
+	$(CC) -c config.c $(CFLAGS)
 
 common.o: common.c common.h
 	$(CC) -c common.c $(CFLAGS)

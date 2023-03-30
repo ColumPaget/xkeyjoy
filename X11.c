@@ -1,4 +1,5 @@
 #include "X11.h"
+#include "config.h"
 
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
@@ -574,7 +575,13 @@ int X11TranslateKeycode(unsigned int keycode)
     KeySym ks;
     const char *ptr;
 
+    #ifdef HAVE_XKBKEYCODETOKEYSYM
+    #include <X11/XKBlib.h>
+    ks=XkbKeycodeToKeysym(display, keycode, 0, 0);
+    #else
     ks=XKeycodeToKeysym(display, keycode, 0);
+    #endif
+
     switch (ks)
     {
     case XK_Escape:
@@ -977,7 +984,7 @@ void X11SendEvent(Window win, unsigned int key, unsigned int mods, int state)
 
     if (key==0) return;
 
-    if (Flags & FLAG_DEBUG) printf("sendkey: %c %d target=%x root=%x\n", key, key, win, RootWin);
+    if (Config.Flags & FLAG_DEBUG) printf("sendkey: %c %d target=%x root=%x\n", key, key, win, RootWin);
 
     //unset these keys on each new key
     X11SendKey(win, XK_Meta_L, 0, 0);
@@ -1051,7 +1058,7 @@ int X11AddKeyGrab(int key, int mods)
     sym=XKeysymToKeycode(display, X11TranslateKey(key));
 
     if (sym >0) result=XGrabKey(display, sym, modmask, RootWin, False, GrabModeAsync, GrabModeAsync);
-    if (Flags & FLAG_DEBUG) printf("Setup KeyGrabs sym=%d key=%d mods=%d RootWin=%d result=%d\n", sym, key, mods, RootWin, result);
+    if (Config.Flags & FLAG_DEBUG) printf("Setup KeyGrabs sym=%d key=%d mods=%d RootWin=%d result=%d\n", sym, key, mods, RootWin, result);
 
     return(result);
 }
@@ -1061,7 +1068,7 @@ int X11AddButtonGrab(int btn)
     int result;
 
     result=XGrabButton(display, btn, None, RootWin, False, ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None);
-    if (Flags & FLAG_DEBUG) printf("Setup ButtonGrabs btn=%d RootWin=%d result=%d\n", btn, RootWin, result);
+    if (Config.Flags & FLAG_DEBUG) printf("Setup ButtonGrabs btn=%d RootWin=%d result=%d\n", btn, RootWin, result);
 
     return(result);
 }
@@ -1111,6 +1118,7 @@ int X11GetEvent(TInputMap *Input)
             Input->intype=EV_XKB;
             Input->value=TRUE;
             Input->input=X11TranslateKeycode(ev.xkey.keycode);
+            if (Config.Flags & FLAG_DEBUG) printf("X11 keypress: %d %d \n", Input->input, ev.xkey.keycode);
 
             Input->inmods=0;
             if (ev.xkey.state & ShiftMask) Input->inmods |= KEYMOD_SHIFT;
@@ -1123,6 +1131,7 @@ int X11GetEvent(TInputMap *Input)
             Input->intype=EV_XKB;
             Input->value=FALSE;
             Input->input=X11TranslateKeycode(ev.xkey.keycode);
+            if (Config.Flags & FLAG_DEBUG) printf("X11 keyrelease: %d %d \n", Input->input, ev.xkey.keycode);
 
             Input->inmods=0;
             if (ev.xkey.state & ShiftMask) Input->inmods |= KEYMOD_SHIFT;
@@ -1135,12 +1144,14 @@ int X11GetEvent(TInputMap *Input)
             Input->intype=EV_XBTN;
             Input->value=TRUE;
             Input->input=MOUSE_BTN_1 + ev.xbutton.button -1;
+            if (Config.Flags & FLAG_DEBUG) printf("X11 buttonpress: %d %d \n", Input->input, ev.xbutton.button);
             break;
 
         case ButtonRelease:
             Input->intype=EV_XBTN;
             Input->value=FALSE;
             Input->input=MOUSE_BTN_1 + ev.xbutton.button -1;
+            if (Config.Flags & FLAG_DEBUG) printf("X11 buttonrelease: %d %d \n", Input->input, ev.xbutton.button);
             break;
 
         case MotionNotify:
