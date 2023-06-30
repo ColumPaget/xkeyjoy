@@ -13,10 +13,10 @@ int EvdevGetType(uint64_t *caps, uint64_t *props)
     if (BitIsSet(caps, EV_REP, sizeof(uint64_t))) devtype=DT_KEYBOARD;
 
     if (BitIsSet(props, INPUT_PROP_POINTER, sizeof(uint64_t))) devtype=DT_TRACKPAD;
-    if (BitIsSet(props, INPUT_PROP_DIRECT, sizeof(uint64_t))) 
+    if (BitIsSet(props, INPUT_PROP_DIRECT, sizeof(uint64_t)))
     {
-       if (devtype == DT_TRACKPAD) devtype = DT_TABLET;
-       else devtype=DT_TOUCHSCREEN;
+        if (devtype == DT_TRACKPAD) devtype = DT_TABLET;
+        else devtype=DT_TOUCHSCREEN;
     }
 
 //only mice have EV_REL
@@ -49,8 +49,8 @@ const char *EvdevGetTypeLabel(int devtype)
         return("keyboard");
         break;
     case DT_SWITCH:
-	return("switch");
-	break;
+        return("switch");
+        break;
     }
 
     return("other");

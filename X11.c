@@ -25,6 +25,21 @@ Window RootWin;
 int ButtonMask=0;
 
 
+int X11WindowGetIntegerProperty(Window win, const char *Name)
+{
+    unsigned long nprops=0, trash;
+    unsigned char *p_Data;
+    int PropFormat, val=0;
+    Atom Prop, PType;
+
+    Prop=XInternAtom(display, Name, False);
+    XGetWindowProperty(display, win, Prop, 0, 1024, 0, AnyPropertyType, &PType, &PropFormat, &nprops, &trash, &p_Data);
+    if (nprops > 0) val=* (int *) p_Data;
+
+    XFree(p_Data);
+    return(val);
+}
+
 void X11SetupEvents(Window CurrWin)
 {
     XSetWindowAttributes WinAttr;
@@ -115,18 +130,7 @@ int X11WindowGetState(Window win)
 
 pid_t X11WindowGetPID(Window win)
 {
-    unsigned long nprops=0, trash;
-    unsigned char *p_Data;
-    pid_t pid=0;
-    int PropFormat;
-    Atom WM_PID, PType;
-
-    WM_PID=XInternAtom(display, "_NET_WM_PID", False);
-    XGetWindowProperty(display, win, WM_PID, 0, 1024, 0, AnyPropertyType, &PType, &PropFormat, &nprops, &trash, &p_Data);
-    if (nprops > 0) pid= (pid_t) * (int *) p_Data;
-
-    XFree(p_Data);
-    return(pid);
+    return( (pid_t) X11WindowGetIntegerProperty(win, "_NET_WM_PID"));
 }
 
 
@@ -575,12 +579,12 @@ int X11TranslateKeycode(unsigned int keycode)
     KeySym ks;
     const char *ptr;
 
-    #ifdef HAVE_XKBKEYCODETOKEYSYM
-    #include <X11/XKBlib.h>
+#ifdef HAVE_XKBKEYCODETOKEYSYM
+#include <X11/XKBlib.h>
     ks=XkbKeycodeToKeysym(display, keycode, 0, 0);
-    #else
+#else
     ks=XKeycodeToKeysym(display, keycode, 0);
-    #endif
+#endif
 
     switch (ks)
     {
@@ -903,6 +907,35 @@ void X11SendMouseButton(Window win, unsigned int button, unsigned int state)
 }
 
 
+
+void X11SendMessage(Window Win, const char *MessageType, int Value1, int Value2)
+{
+    XEvent event;
+    Atom TypeAtom;
+    static int serial=0;
+
+    TypeAtom=XInternAtom(display, MessageType, False);
+
+    memset( &event, 0, sizeof (XEvent) );
+    event.xclient.type = ClientMessage;
+    event.xclient.serial = serial++;
+    event.xclient.window = Win;
+    event.xclient.message_type = TypeAtom;
+    event.xclient.send_event=True;
+    event.xclient.format = 32;
+    event.xclient.data.l[0] = Value1;
+    event.xclient.data.l[1] = Value2;
+    event.xclient.data.l[2] = 0;
+    event.xclient.data.l[3] = 0;
+    event.xclient.data.l[4] = 0;
+
+
+    XSendEvent(display, RootWin, False, SubstructureRedirectMask | SubstructureNotifyMask, &event);
+    XSync(display, True);
+}
+
+
+
 void X11WindowSetState(Window Win, int Action)
 {
     Atom StateAtom, StateValue=None;
@@ -954,27 +987,46 @@ void X11WindowSetState(Window Win, int Action)
     }
 
 
-    if (StateValue != None)
+    if (StateValue != None) X11SendMessage(Win, "_NET_WM_STATE", AddOrDel, (int) StateValue);
+}
+
+
+
+void X11SwitchDesktop(int Change)
+{
+    int no_of_desktops, desktop=0;
+
+    no_of_desktops=X11WindowGetIntegerProperty(RootWin, "_NET_NUMBER_OF_DESKTOPS");
+    desktop=X11WindowGetIntegerProperty(RootWin, "_NET_CURRENT_DESKTOP");
+
+    if (Change == X11_NEXT_DESKTOP) desktop++;
+    else if (Change == X11_PREV_DESKTOP) desktop--;
+    else desktop=Change;
+
+    if (desktop >= no_of_desktops) desktop=0;
+    if (desktop < 0) desktop=no_of_desktops -1;
+
+    printf("SWITCH DESKTOP: %d of %d\n", desktop, no_of_desktops);
+
+    X11SendMessage(RootWin, "_NET_CURRENT_DESKTOP", desktop, time(NULL));
+}
+
+
+void X11ChangeDesktops(int Change)
+{
+    int no_of_desktops;
+
+    no_of_desktops=X11WindowGetIntegerProperty(RootWin, "_NET_NUMBER_OF_DESKTOPS");
+
+    if (Change == ACT_ADD_DESKTOP) no_of_desktops++;
+    else if (Change == ACT_DEL_DESKTOP) no_of_desktops--;
+
+    if (no_of_desktops > 0)
     {
-        StateAtom=XInternAtom(display, "_NET_WM_STATE", False);
-
-        memset( &event, 0, sizeof (XEvent) );
-        event.xclient.type = ClientMessage;
-        event.xclient.serial = 0;
-        event.xclient.window = Win;
-        event.xclient.message_type = StateAtom;
-        event.xclient.send_event=True;
-        event.xclient.format = 32;
-        event.xclient.data.l[0] = AddOrDel;
-        event.xclient.data.l[1] = StateValue;
-        event.xclient.data.l[2] = 0;
-        event.xclient.data.l[3] = 0;
-        event.xclient.data.l[4] = 0;
-
-
-        XSendEvent(display, RootWin, False, SubstructureRedirectMask | SubstructureNotifyMask, &event);
-        XSync(display, True);
+        printf("CHANGE NO OF DESKTOPS: %d\n", no_of_desktops);
+        X11SendMessage(RootWin, "_NET_NUMBER_OF_DESKTOPS", no_of_desktops, 0);
     }
+
 }
 
 

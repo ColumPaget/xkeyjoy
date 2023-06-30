@@ -125,6 +125,22 @@ int ProcessEvent(TProfile *Profile, Window win, TInputMap *ev)
                         X11WindowSetState(target, IMap->action);
                         break;
 
+                    case ACT_SWITCH_DESKTOP:
+                        X11SwitchDesktop(atoi(IMap->target)-1);
+                        break;
+                    case ACT_PREV_DESKTOP:
+                        X11SwitchDesktop(X11_PREV_DESKTOP);
+                        break;
+                    case ACT_NEXT_DESKTOP:
+                        X11SwitchDesktop(X11_NEXT_DESKTOP);
+                        break;
+                    case ACT_ADD_DESKTOP:
+                        X11ChangeDesktops(ACT_ADD_DESKTOP);
+                        break;
+                    case ACT_DEL_DESKTOP:
+                        X11ChangeDesktops(ACT_DEL_DESKTOP);
+                        break;
+
                     default:
                         X11SendEvent(target, IMap->output, IMap->outmods, ev->value);
                         break;

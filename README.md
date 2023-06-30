@@ -237,6 +237,21 @@ will cause a window to hide/minimize when alt-h is pressed
 
 
 
+DESKTOP ACTIONS
+===============
+
+The following actions can be booked against a keypress. They effect desktops in window managers that support multiple virtual desktops.
+
+
+```
+desktop:prev   switch to previous desktop
+desktop:next   switch to next desktop
+desktop:<n>    switch to desktop '<n>' (e.g. desktop:2 to switch to the 2nd desktop)
+desktop:add    add another desktop
+desktop:del    remove a desktop
+```
+
+
 KEYNAMES
 ========
 

@@ -349,7 +349,7 @@ static char *ProfilePreProcess(char *RetStr, const char *Config)
 
 static int ProfileParseInputMapping(TInputMap *IMap, const char *Name, const char *Value)
 {
-    const char *ptr;
+    const char *ptr=NULL;
 
     if ( strncmp(Name, "abs", 3)==0) ProfileParseAbsInput(IMap, Name);
     else if (strncmp(Name, "btn:", 4)==0) ProfileParseButtonInput(IMap, Name);
@@ -361,72 +361,35 @@ static int ProfileParseInputMapping(TInputMap *IMap, const char *Name, const cha
     if (strncmp(Value, "rootwin:", 8)==0)
     {
         IMap->target=CopyStr(IMap->target, "root");
-        ptr=Value + 8;
+        IMap->output=ProfileParseKey(Value+8, &IMap->outmods);
     }
     else if (strncmp(Value, "exec:", 5)==0)
     {
         IMap->action=ACT_EXEC;
         IMap->target=UnQuoteStr(IMap->target, Value);
-        ptr=NULL;
     }
-    else if (strcmp(Value, "killwin")==0)
+    else if (strcmp(Value, "killwin")==0) IMap->action=ACT_WINKILL;
+    else if (strcmp(Value, "closewin")==0) IMap->action=ACT_WINCLOSE;
+    else if (strcmp(Value, "shadewin")==0) IMap->action=ACT_WINSHADE;
+    else if (strcmp(Value, "stickwin")==0) IMap->action=ACT_WINSTICK;
+    else if (strcmp(Value, "minwin")==0) IMap->action=ACT_WINHIDE;
+    else if (strcmp(Value, "hidewin")==0) IMap->action=ACT_WINHIDE;
+    else if (strcmp(Value, "fullscr")==0) IMap->action=ACT_WINFULLSCR;
+    else if (strcmp(Value, "below")==0) IMap->action=ACT_WINLOWERED;
+    else if (strcmp(Value, "above")==0) IMap->action=ACT_WINRAISED;
+    else if (strcmp(Value, "wide")==0) IMap->action=ACT_WINMAX_X;
+    else if (strcmp(Value, "tall")==0) IMap->action=ACT_WINMAX_Y;
+    else if (strcmp(Value, "desktop:prev")==0) IMap->action=ACT_PREV_DESKTOP;
+    else if (strcmp(Value, "desktop:next")==0) IMap->action=ACT_NEXT_DESKTOP;
+    else if (strcmp(Value, "desktop:add")==0) IMap->action=ACT_ADD_DESKTOP;
+    else if (strcmp(Value, "desktop:del")==0) IMap->action=ACT_DEL_DESKTOP;
+    else if (strncmp(Value, "desktop:", 8)==0)
     {
-        IMap->action=ACT_WINKILL;
-        ptr=NULL;
+        IMap->action=ACT_SWITCH_DESKTOP;
+        IMap->target=CopyStr(IMap->target, Value + 8);
     }
-    else if (strcmp(Value, "closewin")==0)
-    {
-        IMap->action=ACT_WINCLOSE;
-        ptr=NULL;
-    }
-    else if (strcmp(Value, "shadewin")==0)
-    {
-        IMap->action=ACT_WINSHADE;
-        ptr=NULL;
-    }
-    else if (strcmp(Value, "stickwin")==0)
-    {
-        IMap->action=ACT_WINSTICK;
-        ptr=NULL;
-    }
-    else if (strcmp(Value, "minwin")==0)
-    {
-        IMap->action=ACT_WINHIDE;
-        ptr=NULL;
-    }
-    else if (strcmp(Value, "hidewin")==0)
-    {
-        IMap->action=ACT_WINHIDE;
-        ptr=NULL;
-    }
-    else if (strcmp(Value, "fullscr")==0)
-    {
-        IMap->action=ACT_WINFULLSCR;
-        ptr=NULL;
-    }
-    else if (strcmp(Value, "below")==0)
-    {
-        IMap->action=ACT_WINLOWERED;
-        ptr=NULL;
-    }
-    else if (strcmp(Value, "above")==0)
-    {
-        IMap->action=ACT_WINRAISED;
-        ptr=NULL;
-    }
-    else if (strcmp(Value, "wide")==0)
-    {
-        IMap->action=ACT_WINMAX_X;
-        ptr=NULL;
-    }
-    else if (strcmp(Value, "tall")==0)
-    {
-        IMap->action=ACT_WINMAX_Y;
-        ptr=NULL;
-    }
-    else ptr=Value;
+    else IMap->output=ProfileParseKey(Value, &IMap->outmods);
 
-    IMap->output=ProfileParseKey(ptr, &IMap->outmods);
 
     return(TRUE);
 }

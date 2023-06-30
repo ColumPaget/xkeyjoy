@@ -2,7 +2,7 @@ OBJ=X11.o evdev.o profile.o proc.o command_line.o config.o common.o
 CFLAGS=@CFLAGS@ @DEFS@
 LDFLAGS=@LDFLAGS@
 LIBS=@LIBS@
-VERSION=4.0
+VERSION=5.0
 prefix=@prefix@
 
 all: $(OBJ)
