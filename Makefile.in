@@ -5,8 +5,8 @@ LIBS=@LIBS@
 VERSION=5.0
 prefix=@prefix@
 
-all: $(OBJ)
-	$(CC) -oxkeyjoy -DVERSION=\"$(VERSION)\" $(CFLAGS) $(LDFLAGS) $(OBJ) main.c $(LIBS)
+all: $(OBJ) @LIBUSEFUL_BUNDLED@
+	$(CC) -oxkeyjoy -DVERSION=\"$(VERSION)\" $(CFLAGS) $(LDFLAGS) $(OBJ) main.c $(LIBS) @LIBUSEFUL_BUNDLED@
 
 libUseful-5/libUseful.a:
 	$(MAKE) -C libUseful-5
