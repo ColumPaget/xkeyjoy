@@ -293,8 +293,8 @@ configure:3624: $? = 0
 configure:3624: result: yes
 configure:3624: checking for htonll
 configure:3624: gcc -o conftest -g -O2   conftest.c -lc  >&5
-/usr/lib/gcc/i486-pc-linux-gnu/8.3.0/../../../../i486-pc-linux-gnu/bin/ld: /tmp/ccQoeHuI.o: in function `main':
-/home/colum/work/xkeyjoy/libUseful-5/conftest.c:56: undefined reference to `htonll'
+/usr/lib/gcc/i486-pc-linux-gnu/8.3.0/../../../../i486-pc-linux-gnu/bin/ld: /tmp/ccohCnUw.o: in function `main':
+/tmp/xkeyjoy/libUseful-5/conftest.c:56: undefined reference to `htonll'
 collect2: error: ld returned 1 exit status
 configure:3624: $? = 1
 configure: failed program was:
@@ -360,8 +360,8 @@ configure: failed program was:
 configure:3624: result: no
 configure:3624: checking for ntohll
 configure:3624: gcc -o conftest -g -O2   conftest.c -lc  >&5
-/usr/lib/gcc/i486-pc-linux-gnu/8.3.0/../../../../i486-pc-linux-gnu/bin/ld: /tmp/cc0RnHgV.o: in function `main':
-/home/colum/work/xkeyjoy/libUseful-5/conftest.c:56: undefined reference to `ntohll'
+/usr/lib/gcc/i486-pc-linux-gnu/8.3.0/../../../../i486-pc-linux-gnu/bin/ld: /tmp/ccKy4qFC.o: in function `main':
+/tmp/xkeyjoy/libUseful-5/conftest.c:56: undefined reference to `ntohll'
 collect2: error: ld returned 1 exit status
 configure:3624: $? = 1
 configure: failed program was:

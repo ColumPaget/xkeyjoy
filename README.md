@@ -264,11 +264,11 @@ Keypad keys: home, end, insert, delete, pageup, pagedown
 System keys: scrlck, pause, print
 Internet keys: www, shop, media, faves, back, forward, homepage, mail, messenger,  eject, calculator, lightbulb, wlan, webcam
 Media keys: play, mute, volup, voldown
-Modifiers: shift, ctrl, alt, ralt
+Modifiers: shift, ctrl, alt, ralt, super
 
 'esc' is the standard escape key, 'win' is the windows key, 'volup' and 'voldown' are the increase and decrease volume keys on media keyboards. 'play' is the 'play or pause' key on media keyboards. 'scrlck' is the scroll-lock key, 'print' is the print-screen key and 'pause' is the pause/break key.
 
-The modifiers are keys that can be combined with another key in the style 'alt-z' or 'shift-delete'. 'ralt' is 'right-alt', which maps to 'mod5' under X11.
+The modifiers are keys that can be combined with another key in the style 'alt-z' or 'shift-delete'. 'ralt' is 'right-alt', which maps to 'mod5' under X11. 'super' is 'mod4' under X11, as is generally the windows key when used as a modifier rather than just a key.
 
 
 SUPPORTED GAMEPADS
