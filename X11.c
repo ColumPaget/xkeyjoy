@@ -25,7 +25,22 @@ Window RootWin;
 int ButtonMask=0;
 
 
-int X11WindowGetIntegerProperty(Window win, const char *Name)
+static int X11ErrorHandler(Display *Disp, XErrorEvent *Event)
+{
+    char *Tempstr=NULL;
+
+    Tempstr=SetStrLen(Tempstr, 512);
+    XGetErrorText(Disp, Event->error_code, Tempstr, 512);
+
+    fprintf(stderr,"X11 Error: %s\n", Tempstr);
+
+    Destroy(Tempstr);
+    return(FALSE);
+}
+
+
+
+static int X11WindowGetIntegerProperty(Window win, const char *Name)
 {
     unsigned long nprops=0, trash;
     unsigned char *p_Data;
@@ -40,7 +55,9 @@ int X11WindowGetIntegerProperty(Window win, const char *Name)
     return(val);
 }
 
-void X11SetupEvents(Window CurrWin)
+
+
+static void X11SetupEvents(Window CurrWin)
 {
     XSetWindowAttributes WinAttr;
 
@@ -54,136 +71,10 @@ void X11SetupEvents(Window CurrWin)
 }
 
 
-Window X11GetFocusedWin()
-{
-    Window focused, parent;
-    int trash;
-
-    XGetInputFocus(display, &focused, &trash);
-    X11SetupEvents(focused);
-
-    return(focused);
-}
-
-Window X11GetPointerWin()
-{
-    Window CurrWin, tmpWin;
-    int root_x, root_y, win_x, win_y, mask;
-
-    XQueryPointer(display, RootWin, &tmpWin, &CurrWin, &root_x, &root_y, &win_x, &win_y, &mask);
-
-    return(CurrWin);
-}
 
 
 
-Window X11FindWin(const char *Name)
-{
-    if (! StrValid(Name)) return(None);
-
-    if (strcmp(Name, "root")==0) return (RootWin);
-    if (strcmp(Name, "rootwin")==0) return (RootWin);
-    if (strncmp(Name, "0x", 2)==0) return (strtol(Name+2, NULL, 16));
-
-    return(None);
-}
-
-
-int X11WindowGetState(Window win)
-{
-    unsigned long nprops=0, trash;
-    unsigned char *p_Data;
-    int PropFormat, i;
-    Atom WM_STATE, WM_SHADED, WM_STICKY, WM_FULLSCREEN, WM_ABOVE, WM_BELOW, WM_MAX_X, WM_MAX_Y, PType, *AtomList;
-    int WinState=0;
-
-    WM_STATE=XInternAtom(display, "_NET_WM_STATE", False);
-    WM_SHADED=XInternAtom(display, "_NET_WM_STATE_SHADED", False);
-    WM_STICKY=XInternAtom(display, "_NET_WM_STATE_STICKY", False);
-    WM_FULLSCREEN=XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
-    WM_ABOVE=XInternAtom(display, "_NET_WM_STATE_ABOVE", False);
-    WM_BELOW=XInternAtom(display, "_NET_WM_STATE_BELOW", False);
-    WM_MAX_X=XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
-    WM_MAX_Y=XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
-
-    XGetWindowProperty(display, win, WM_STATE, 0, 1024, 0, AnyPropertyType, &PType, &PropFormat, &nprops, &trash, &p_Data);
-
-    if (nprops > 0)
-    {
-        AtomList=(Atom *) p_Data;
-        for (i=0; i < nprops; i++)
-        {
-            if (AtomList[i]==WM_SHADED) WinState |= WINSTATE_SHADED;
-            if (AtomList[i]==WM_STICKY) WinState |= WINSTATE_STICKY;
-            if (AtomList[i]==WM_FULLSCREEN) WinState |= WINSTATE_FULLSCREEN;
-            if (AtomList[i]==WM_ABOVE) WinState |= WINSTATE_RAISED;
-            if (AtomList[i]==WM_BELOW) WinState |= WINSTATE_LOWERED;
-            if (AtomList[i]==WM_MAX_X) WinState |= WINSTATE_MAX_X;
-            if (AtomList[i]==WM_MAX_Y) WinState |= WINSTATE_MAX_Y;
-        }
-    }
-
-    XFree(p_Data);
-    return(WinState);
-}
-
-
-pid_t X11WindowGetPID(Window win)
-{
-    return( (pid_t) X11WindowGetIntegerProperty(win, "_NET_WM_PID"));
-}
-
-
-
-char *X11WindowGetCmdLine(char *RetStr, Window win)
-{
-    unsigned long nprops=0, trash;
-    unsigned char *p_Data;
-    int PropFormat;
-    Atom PType;
-    int len, i;
-    pid_t pid=0;
-
-    RetStr=CopyStr(RetStr, "");
-
-//first try getting window pid (_NET_WM_PID property) and looking command line up from that using the /proc filesystem
-    pid=X11WindowGetPID(win);
-    if (pid > 0) RetStr=GetProcessCmdLine(RetStr,  pid);
-
-
-//if, for any reason, we failed to get a command-line from the window pid, start desperately trying other window properties
-    if (! StrValid(RetStr))
-    {
-        //the XA_WM_COMMAND property gives us the full command-line of the app that owns the window
-        XGetWindowProperty(display, win, XA_WM_COMMAND, 0, 1024, 0, XA_STRING, &PType, &PropFormat, &nprops, &trash, &p_Data);
-
-        //if XA_WM_COMMAND doesn't work, then our last hope is to just get the window name.
-        if (nprops ==0) XGetWindowProperty(display, win, XA_WM_NAME, 0, 1024, 0, XA_STRING, &PType, &PropFormat, &nprops, &trash, &p_Data);
-
-        if (nprops > 0)
-        {
-            for (i=0; i < nprops-1; i++)
-            {
-                if (p_Data[i]=='\0') p_Data[i]=' ';
-            }
-        }
-        RetStr=CatStr(RetStr, p_Data);
-    }
-
-
-    return(RetStr);
-}
-
-
-void X11CloseWindow(Window win, int Action)
-{
-    if (Action==ACT_WINKILL) XKillClient(display, win);
-    else XDestroyWindow(display, win);
-    XSync(display, True);
-}
-
-
-KeySym X11TranslateKey(int key)
+static KeySym X11TranslateKey(int key)
 {
     KeySym ks;
     char kstring[2];
@@ -574,7 +465,7 @@ KeySym X11TranslateKey(int key)
 
 
 
-int X11TranslateKeycode(unsigned int keycode)
+static int X11TranslateKeycode(unsigned int keycode)
 {
     KeySym ks;
     const char *ptr;
@@ -810,10 +701,43 @@ int X11TranslateKeycode(unsigned int keycode)
 }
 
 
-void X11SendKey(Window win, int key, int mods, int state)
+static int XTestSendKey(Window win, int key, int mods, int state)
+{
+if (Config.Flags & FLAG_XSENDEVENT) return(FALSE);
+
+#ifdef HAVE_LIBXTST
+int keycode;
+
+    if (mods & KEYMOD_SHIFT) XTestFakeKeyEvent(display, XKeysymToKeycode(display, XK_Shift_L), 1, CurrentTime);
+    if (mods & KEYMOD_CTRL) XTestFakeKeyEvent(display, XKeysymToKeycode(display, XK_Control_L), 1, CurrentTime);
+    if (mods & KEYMOD_ALT) XTestFakeKeyEvent(display, XKeysymToKeycode(display, XK_Alt_L), 1, CurrentTime);
+    if (mods & KEYMOD_ALT2) XTestFakeKeyEvent(display, XKeysymToKeycode(display, XK_ISO_Level5_Shift), 1, CurrentTime);
+
+    keycode=XKeysymToKeycode(display, key);
+    XTestFakeKeyEvent(display, keycode, state, 20);
+    XSync(display, True);
+    XTestFakeKeyEvent(display, keycode, 0, 50);
+    XSync(display, True);
+
+    if (mods & KEYMOD_SHIFT) XTestFakeKeyEvent(display, XKeysymToKeycode(display, XK_Shift_L), 0, CurrentTime);
+    if (mods & KEYMOD_CTRL) XTestFakeKeyEvent(display, XKeysymToKeycode(display, XK_Control_L), 0, CurrentTime);
+    if (mods & KEYMOD_ALT) XTestFakeKeyEvent(display, XKeysymToKeycode(display, XK_Alt_L), 0, CurrentTime);
+    if (mods & KEYMOD_ALT2) XTestFakeKeyEvent(display, XKeysymToKeycode(display, XK_ISO_Level5_Shift), 0, CurrentTime);
+
+
+    return(TRUE);
+#endif
+
+return(FALSE);
+}
+
+
+static int X11SendKeyEvent(Window win, int key, int mods, int state)
 {
     XEvent ev;
     int upper, lower;
+
+    if (Config.Flags & FLAG_XTEST) return(FALSE);
 
     if (win==0) win=RootWin;
     ev.xkey.state=0;
@@ -837,11 +761,20 @@ void X11SendKey(Window win, int key, int mods, int state)
     printf("SEND KEY: %d %c %d\n", state, key, key);
     XSendEvent(display, win, False, KeyPressMask | KeyReleaseMask, &ev);
     XSync(display, True);
+
+return(TRUE);
 }
 
 
+static void X11SendKey(Window win, int key, int mods, int state)
+{
+int result;
 
-void X11SendMouseButton(Window win, unsigned int button, unsigned int state)
+result=XTestSendKey(win, key, mods, state);
+if (! result) X11SendKeyEvent(win, key, mods, state);
+}
+
+static void X11SendMouseButton(Window win, unsigned int button, unsigned int state)
 {
     XEvent ev;
     Window root_return, win_return;
@@ -908,7 +841,7 @@ void X11SendMouseButton(Window win, unsigned int button, unsigned int state)
 
 
 
-void X11SendMessage(Window Win, const char *MessageType, int Value1, int Value2)
+static void X11SendMessage(Window Win, const char *MessageType, int Value1, int Value2)
 {
     XEvent event;
     Atom TypeAtom;
@@ -934,6 +867,44 @@ void X11SendMessage(Window Win, const char *MessageType, int Value1, int Value2)
     XSync(display, True);
 }
 
+
+int X11WindowGetState(Window win)
+{
+    unsigned long nprops=0, trash;
+    unsigned char *p_Data;
+    int PropFormat, i;
+    Atom WM_STATE, WM_SHADED, WM_STICKY, WM_FULLSCREEN, WM_ABOVE, WM_BELOW, WM_MAX_X, WM_MAX_Y, PType, *AtomList;
+    int WinState=0;
+
+    WM_STATE=XInternAtom(display, "_NET_WM_STATE", False);
+    WM_SHADED=XInternAtom(display, "_NET_WM_STATE_SHADED", False);
+    WM_STICKY=XInternAtom(display, "_NET_WM_STATE_STICKY", False);
+    WM_FULLSCREEN=XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
+    WM_ABOVE=XInternAtom(display, "_NET_WM_STATE_ABOVE", False);
+    WM_BELOW=XInternAtom(display, "_NET_WM_STATE_BELOW", False);
+    WM_MAX_X=XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_HORZ", False);
+    WM_MAX_Y=XInternAtom(display, "_NET_WM_STATE_MAXIMIZED_VERT", False);
+
+    XGetWindowProperty(display, win, WM_STATE, 0, 1024, 0, AnyPropertyType, &PType, &PropFormat, &nprops, &trash, &p_Data);
+
+    if (nprops > 0)
+    {
+        AtomList=(Atom *) p_Data;
+        for (i=0; i < nprops; i++)
+        {
+            if (AtomList[i]==WM_SHADED) WinState |= WINSTATE_SHADED;
+            if (AtomList[i]==WM_STICKY) WinState |= WINSTATE_STICKY;
+            if (AtomList[i]==WM_FULLSCREEN) WinState |= WINSTATE_FULLSCREEN;
+            if (AtomList[i]==WM_ABOVE) WinState |= WINSTATE_RAISED;
+            if (AtomList[i]==WM_BELOW) WinState |= WINSTATE_LOWERED;
+            if (AtomList[i]==WM_MAX_X) WinState |= WINSTATE_MAX_X;
+            if (AtomList[i]==WM_MAX_Y) WinState |= WINSTATE_MAX_Y;
+        }
+    }
+
+    XFree(p_Data);
+    return(WinState);
+}
 
 
 void X11WindowSetState(Window Win, int Action)
@@ -1036,7 +1007,7 @@ void X11SendEvent(Window win, unsigned int key, unsigned int mods, int state)
 
     if (key==0) return;
 
-    if (Config.Flags & FLAG_DEBUG) printf("sendkey: %c %d target=%x root=%x\n", key, key, win, RootWin);
+    if (Config.Flags & FLAG_DEBUG) printf("sendkey: %c %d target=%x root=%x\n", key, key, (unsigned int) win, (unsigned int) RootWin);
 
     //unset these keys on each new key
     X11SendKey(win, XK_Meta_L, 0, 0);
@@ -1081,19 +1052,6 @@ void X11SendEvent(Window win, unsigned int key, unsigned int mods, int state)
 
 
 
-int X11ErrorHandler(Display *Disp, XErrorEvent *Event)
-{
-    char *Tempstr=NULL;
-
-    Tempstr=SetStrLen(Tempstr, 512);
-    XGetErrorText(Disp, Event->error_code, Tempstr, 512);
-
-    fprintf(stderr,"X11 Error: %s\n", Tempstr);
-
-    Destroy(Tempstr);
-    return(FALSE);
-}
-
 
 int X11ReleaseKeygrabs(Window win)
 {
@@ -1116,7 +1074,7 @@ int X11AddKeyGrab(int key, int mods)
     sym=XKeysymToKeycode(display, X11TranslateKey(key));
 
     if (sym >0) result=XGrabKey(display, sym, modmask, RootWin, False, GrabModeAsync, GrabModeAsync);
-    if (Config.Flags & FLAG_DEBUG) printf("Setup KeyGrabs sym=%d key=%d mods=%d RootWin=%d result=%d\n", sym, key, mods, RootWin, result);
+    if (Config.Flags & FLAG_DEBUG) printf("Setup KeyGrabs sym=%d key=%d mods=%d RootWin=%x result=%d\n", sym, key, mods, (unsigned int) RootWin, result);
 
     return(result);
 }
@@ -1126,7 +1084,7 @@ int X11AddButtonGrab(int btn)
     int result;
 
     result=XGrabButton(display, btn, None, RootWin, False, ButtonPressMask | ButtonReleaseMask, GrabModeAsync, GrabModeAsync, None, None);
-    if (Config.Flags & FLAG_DEBUG) printf("Setup ButtonGrabs btn=%d RootWin=%d result=%d\n", btn, RootWin, result);
+    if (Config.Flags & FLAG_DEBUG) printf("Setup ButtonGrabs btn=%d RootWin=%x result=%d\n", btn, (unsigned int) RootWin, result);
 
     return(result);
 }
@@ -1235,6 +1193,96 @@ int X11GetEvent(TInputMap *Input)
     }
 
     return(TRUE);
+}
+
+
+Window X11GetFocusedWin()
+{
+    Window focused, parent;
+    int trash;
+
+    XGetInputFocus(display, &focused, &trash);
+    X11SetupEvents(focused);
+
+    return(focused);
+}
+
+Window X11GetPointerWin()
+{
+    Window CurrWin, tmpWin;
+    int root_x, root_y, win_x, win_y, mask;
+
+    XQueryPointer(display, RootWin, &tmpWin, &CurrWin, &root_x, &root_y, &win_x, &win_y, &mask);
+
+    return(CurrWin);
+}
+
+
+
+Window X11FindWin(const char *Name)
+{
+    if (! StrValid(Name)) return(None);
+
+    if (strcmp(Name, "root")==0) return (RootWin);
+    if (strcmp(Name, "rootwin")==0) return (RootWin);
+    if (strncmp(Name, "0x", 2)==0) return (strtol(Name+2, NULL, 16));
+
+    return(None);
+}
+
+
+pid_t X11WindowGetPID(Window win)
+{
+    return( (pid_t) X11WindowGetIntegerProperty(win, "_NET_WM_PID"));
+}
+
+
+
+char *X11WindowGetCmdLine(char *RetStr, Window win)
+{
+    unsigned long nprops=0, trash;
+    unsigned char *p_Data;
+    int PropFormat;
+    Atom PType;
+    int len, i;
+    pid_t pid=0;
+
+    RetStr=CopyStr(RetStr, "");
+
+//first try getting window pid (_NET_WM_PID property) and looking command line up from that using the /proc filesystem
+    pid=X11WindowGetPID(win);
+    if (pid > 0) RetStr=GetProcessCmdLine(RetStr,  pid);
+
+
+//if, for any reason, we failed to get a command-line from the window pid, start desperately trying other window properties
+    if (! StrValid(RetStr))
+    {
+        //the XA_WM_COMMAND property gives us the full command-line of the app that owns the window
+        XGetWindowProperty(display, win, XA_WM_COMMAND, 0, 1024, 0, XA_STRING, &PType, &PropFormat, &nprops, &trash, &p_Data);
+
+        //if XA_WM_COMMAND doesn't work, then our last hope is to just get the window name.
+        if (nprops ==0) XGetWindowProperty(display, win, XA_WM_NAME, 0, 1024, 0, XA_STRING, &PType, &PropFormat, &nprops, &trash, &p_Data);
+
+        if (nprops > 0)
+        {
+            for (i=0; i < nprops-1; i++)
+            {
+                if (p_Data[i]=='\0') p_Data[i]=' ';
+            }
+        }
+        RetStr=CatStr(RetStr, p_Data);
+    }
+
+
+    return(RetStr);
+}
+
+
+void X11CloseWindow(Window win, int Action)
+{
+    if (Action==ACT_WINKILL) XKillClient(display, win);
+    else XDestroyWindow(display, win);
+    XSync(display, True);
 }
 
 

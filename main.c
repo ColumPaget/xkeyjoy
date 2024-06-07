@@ -68,6 +68,8 @@ int ProcessEvent(TProfile *Profile, Window win, TInputMap *ev)
             active=FALSE;
             switch (ev->intype)
             {
+
+	    //EV_ABS is events relating to joystick or mouse movement
             case EV_ABS:
                 if (IMap->flags & ABS_MORE)
                 {
@@ -94,7 +96,8 @@ int ProcessEvent(TProfile *Profile, Window win, TInputMap *ev)
 
                 break;
 
-
+	    
+            //events relating to switches, keyboard keys and buttons
             case EV_SW:
             case EV_XKB:
             //fall through
@@ -214,7 +217,7 @@ TProfile *HandleWindowChange(Window win)
     Profile=ProfileForApp(Tempstr);
     if (Config.Flags & FLAG_DEBUG)
     {
-        printf("Winchange: %s %x\n", Tempstr, win);
+        printf("Winchange: %s %x\n", Tempstr, (unsigned int) win);
         printf("Profile for %s: %s\n", Tempstr, Profile->Apps);
     }
 
@@ -239,7 +242,10 @@ int HandleX11Keygrabs(Window win, TProfile *Profile)
     TInputMap ev;
 
     if (! X11GetEvent(&ev)) return(FALSE);
-    if (! ProcessEvent(Profile, win, &ev)) X11SendEvent(win, ev.input, ev.inmods, ev.value);
+    if (! ProcessEvent(Profile, win, &ev)) 
+    {
+	X11SendEvent(win, ev.input, ev.inmods, ev.value);
+    }
     return(TRUE);
 }
 

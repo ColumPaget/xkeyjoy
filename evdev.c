@@ -2,6 +2,7 @@
 #include "profile.h"
 #include "config.h"
 #include <linux/input.h>
+#include <linux/uinput.h>
 
 
 int EvdevGetType(uint64_t *caps, uint64_t *props)
@@ -543,3 +544,6 @@ void EvdevRemoveDevice(ListNode *Devices, STREAM *S)
     }
 
 }
+
+
+

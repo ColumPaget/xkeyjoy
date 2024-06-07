@@ -40,7 +40,7 @@ install:
 	cp profiles.conf $(DESTDIR)$(prefix)/etc/xkeyjoy
 
 clean:
-	rm -f *.o */*.o */*.so */*.a
+	rm -f *.o */*.o */*.so */*.a xkeyjoy
 
 test:
 	echo "No tests"

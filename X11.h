@@ -9,6 +9,7 @@
 #define X11_NEXT_DESKTOP -2
 
 Window X11GetFocusedWin();
+Window X11GetPointerWin();
 Window X11FindWin(const char *Name);
 pid_t X11WindowGetPID(Window win);
 char *X11WindowGetCmdLine(char *RetStr, Window win);

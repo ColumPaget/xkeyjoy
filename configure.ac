@@ -1,12 +1,12 @@
 
-AC_INIT([main.c])
+AC_INIT
+AC_CONFIG_SRCDIR([main.c])
 
 
 AC_PROG_CC 
-AC_LANG_C 
+AC_LANG([C]) 
 AC_PROG_MAKE_SET 
 AC_PROG_INSTALL 
-AC_HEADER_STDC 
 AC_SYS_LARGEFILE
 
 AC_CHECK_FILE([/usr/X11/include/X11/X.h], [X11ROOT="/usr/X11"],
@@ -35,12 +35,28 @@ AC_CHECK_LIB(X11,XOpenDisplay,,)
 cf_have_x11=$ac_cv_lib_X11_XOpenDisplay
 if test "$cf_have_x11" = "yes"
 then
+
 AC_DEFINE([HAVE_X11])
 AC_CHECK_FUNCS(XkbKeycodeToKeysym)
+
 else
 echo "ERROR: cannot find libX11"
 exit
 fi
+
+
+
+AC_ARG_WITH(xtest, [  --with-xtest		use X11 XTest extension for sending events (default=auto) ], cf_with_xtest=$withval, cf_with_xtest=auto )
+
+if test "$cf_have_x11" = "yes"
+then
+  if test "$cf_with_xtest" != "no"
+  then
+    AC_CHECK_LIB(Xtst,XTestFakeKeyEvent)
+  fi
+fi
+
+
 
 AC_ARG_WITH(libuseful, [  --with-libuseful		use system-wide libUseful (default=auto) ], cf_system_libuseful=$withval )
 
@@ -95,5 +111,6 @@ fi
 
 
 dnl read Makefile.in and write Makefile 
-AC_OUTPUT(Makefile)
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
 

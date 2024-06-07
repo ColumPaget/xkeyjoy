@@ -44,6 +44,8 @@ int ParseCommandLine(int argc, char *argv[])
         else if (strcmp(p_arg, "-d")==0) Config.Devices=CopyStr(Config.Devices, CommandLineNext(CmdLine));
         else if (strcmp(p_arg, "-devs")==0) Config.Devices=CopyStr(Config.Devices, CommandLineNext(CmdLine));
         else if (strcmp(p_arg, "-v")==0) Config.Flags |= FLAG_VERSION;
+        else if (strcmp(p_arg, "-X")==0) Config.Flags |= FLAG_XSENDEVENT;
+        else if (strcmp(p_arg, "-T")==0) Config.Flags |= FLAG_XTEST;
         else if (strcmp(p_arg, "-version")==0) Config.Flags |= FLAG_VERSION;
         else if (strcmp(p_arg, "--version")==0) Config.Flags |= FLAG_VERSION;
         else if (strcmp(p_arg, "-h")==0) Config.Flags |= FLAG_HELP;
@@ -78,6 +80,8 @@ void DisplayHelp()
     printf("-devs <list>          list of evdev devices to use, utilizes the full device name\n");
     printf("-d <list>             list of evdev devices to use, utilizes the full device name\n");
     printf("-c <path>             path to config file or directory containing config files\n");
+    printf("-X                    use only XSendEvent for sending keystrokes (default is try XTest, then XSendEvent)\n");
+    printf("-T                    use only XTest for sending keystrokes (default is try XTest, then XSendEvent)\n");
     printf("-v                    output version info\n");
     printf("-version              output version info\n");
     printf("--version             output version info\n");
