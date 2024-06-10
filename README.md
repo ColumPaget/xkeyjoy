@@ -214,17 +214,20 @@ WINDOW ACTIONS
 The following actions can be booked against a keypress that effect window management:
 
 ```
-closewin     close a window
-killwin      kill the app that owns a window
-fullscreen   make window fullscreen (return to normal if fullscreened) 
-wide         make window fullwidth (return to normal if fullwidth)
-tall         make window fullheight (return to normal if fullheight)
-hidewin      hide/minimize win
-minwin       hide/minimize win
-stickwin     make window 'sticky' (unstick if stuck)
-above        make window 'stay above' 
-below        make window 'stay below' 
-shadewin     'shade' a window
+closewin         close a window
+killwin          kill the app that owns a window
+fullscreen       make window fullscreen (return to normal if fullscreened) 
+wide             make window fullwidth (return to normal if fullwidth)
+tall             make window fullheight (return to normal if fullheight)
+hidewin          hide/minimize win
+minwin           hide/minimize win
+stickwin         make window 'sticky' (unstick if stuck)
+above            make window 'stay above' 
+below            make window 'stay below' 
+shadewin        'shade' a window
+ungrab           ungrab the mouse pointer from any window that has it grabbed
+ungrab_mouse     ungrab the mouse pointer from any window that has it grabbed
+ungrab_pointer   ungrab the mouse pointer from any window that has it grabbed
 ```
 
 so, for example

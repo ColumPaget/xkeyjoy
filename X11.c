@@ -1000,6 +1000,11 @@ void X11ChangeDesktops(int Change)
 
 }
 
+void X11UngrabPointer()
+{
+XUngrabPointer(display, CurrentTime);
+}
+
 
 
 void X11SendEvent(Window win, unsigned int key, unsigned int mods, int state)

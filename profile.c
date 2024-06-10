@@ -379,6 +379,9 @@ static int ProfileParseInputMapping(TInputMap *IMap, const char *Name, const cha
     else if (strcmp(Value, "above")==0) IMap->action=ACT_WINRAISED;
     else if (strcmp(Value, "wide")==0) IMap->action=ACT_WINMAX_X;
     else if (strcmp(Value, "tall")==0) IMap->action=ACT_WINMAX_Y;
+    else if (strcmp(Value, "ungrab_pointer")==0) IMap->action=ACT_UNGRAB_POINTER;
+    else if (strcmp(Value, "ungrab_mouse")==0) IMap->action=ACT_UNGRAB_POINTER;
+    else if (strcmp(Value, "ungrab")==0) IMap->action=ACT_UNGRAB_POINTER;
     else if (strcmp(Value, "desktop:prev")==0) IMap->action=ACT_PREV_DESKTOP;
     else if (strcmp(Value, "desktop:next")==0) IMap->action=ACT_NEXT_DESKTOP;
     else if (strcmp(Value, "desktop:add")==0) IMap->action=ACT_ADD_DESKTOP;

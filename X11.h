@@ -20,6 +20,7 @@ int X11GetEvent(TInputMap *Input);
 void X11CloseWindow(Window win, int Action);
 void X11SwitchDesktop(int Change);
 void X11ChangeDesktops(int Change);
+void X11UngrabPointer();
 int X11Init();
 void X11SetupGrabs(TProfile *Profile);
 

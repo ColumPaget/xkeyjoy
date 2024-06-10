@@ -128,6 +128,10 @@ int ProcessEvent(TProfile *Profile, Window win, TInputMap *ev)
                         X11WindowSetState(target, IMap->action);
                         break;
 
+		    case ACT_UNGRAB_POINTER:
+			X11UngrabPointer();
+			break;
+
                     case ACT_SWITCH_DESKTOP:
                         X11SwitchDesktop(atoi(IMap->target)-1);
                         break;
